@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login PMSP — Escoamento Certo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container" style="max-width: 480px;">
+    <div id="auth-alert" class="hidden"></div>
+
+    <div class="card">
+      <span class="status-pill pill-info">ACESSO RESTRITO • FUNCIONÁRIO PMSP</span>
+      <h2 style="font-size: 1.55rem; margin: 0.55rem 0 0.35rem;">Login PMSP</h2>
+      <p style="color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 1.25rem;">
+        Entre com sua credencial funcional para acessar o <strong>Gerenciamento de Limpeza</strong> e a <strong>Dashboard Operacional</strong>.
+      </p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="pmsp-email">E-mail Institucional (@prefeitura.sp.gov.br)</label>
+          <input
+            type="email"
+            id="pmsp-email"
+            class="form-control"
+            value="marina.defesacivil@prefeitura.sp.gov.br"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pmsp-pass">Senha Funcional</label>
+          <input
+            type="password"
+            id="pmsp-pass"
+            class="form-control"
+            value="pmsp2026"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn btn-brand" style="width: 100%; margin-top: 0.5rem;">
+          Entrar no Painel PMSP
+        </button>
+      </form>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1rem; text-align: center;">
+        Ambiente de demonstração: os dados preenchidos acima já permitem acesso imediato.
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Autenticação Institucional — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    renderNavbar("login");
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("restricted") === "1") {
+      const box = document.getElementById("auth-alert");
+      box.className = "alert-banner alert-error";
+      box.textContent = "Acesso restrito: faça o Login PMSP para abrir o Gerenciamento de Limpeza ou a Dashboard.";
+    }
+
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("pmsp-email").value.trim();
+      const pass = document.getElementById("pmsp-pass").value.trim();
+
+      if (!email || !pass) {
+        const box = document.getElementById("auth-alert");
+        box.className = "alert-banner alert-error";
+        box.textContent = "Preencha o e-mail institucional e a senha.";
+        return;
+      }
+
+      setPmspLoggedIn(true, email);
+      window.location.href = "gerenciamento.html";
+    });
+  </script>
+</body>
+</html>

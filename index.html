@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Escoamento Certo — Prefeitura de São Paulo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container">
+    <section class="hero">
+      <span class="hero-badge">PREVENÇÃO DE ENCHENTES • MARGINAL TIETÊ E BAIRROS</span>
+      <h2>Limpeza preventiva antes da chuva virar enchente.</h2>
+      <p>
+        O <strong>Escoamento Certo</strong> cruza a previsão do nível do Rio Tietê (com margem de cautela)
+        com os avisos dos moradores sobre lixo em bocas de lobo para mandar as equipes de limpeza antes do alagamento travar os ônibus e as ruas.
+      </p>
+      <div class="hero-actions">
+        <a href="reportar.html" class="btn btn-primary">+ Reportar Lixo / Bueiro Entupido</a>
+        <a href="acompanhar.html" class="btn btn-secondary">Consultar Meu Reporte por CPF</a>
+      </div>
+    </section>
+
+    <!-- Alerta Preventivo com Geolocalização GPS -->
+    <section id="gps-alert-container" class="gps-alert-box risk-high" aria-live="polite">
+      <div class="gps-header">
+        <div>
+          <span id="gps-risk-pill" class="status-pill pill-critical">ALTO RISCO DE ALAGAMENTO</span>
+          <h3 id="gps-zone-title" style="font-size: 1.3rem; margin-top: 0.55rem;">
+            Marginal Tietê — Ponte do Piqueri / Freguesia do Ó
+          </h3>
+          <p id="gps-coords-info" style="font-size: 0.84rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Localização padrão exibida. Clique em "Usar Meu GPS Atual" para verificar sua rua exata.
+          </p>
+        </div>
+        <button type="button" class="btn btn-brand btn-sm" onclick="detectUserGPS()">
+          📍 Usar Meu GPS Atual
+        </button>
+      </div>
+
+      <div class="grid-2" style="margin-top: 0.75rem;">
+        <div>
+          <p style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem;">Previsão Hidrológica (com margem de cautela):</p>
+          <p id="gps-river-forecast" style="font-size: 0.94rem; color: var(--text-secondary);">
+            Nível do Rio Tietê em elevação (+1,45m com margem de cautela). Pico previsto em 2h30.
+          </p>
+        </div>
+        <div>
+          <p style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem;">Impacto no Transporte & Orientação:</p>
+          <p id="gps-bus-impact" style="font-size: 0.94rem; color: var(--text-secondary);">
+            18 linhas de ônibus municipais e intermunicipais afetadas no corredor.
+          </p>
+        </div>
+      </div>
+
+      <p id="gps-advice" style="margin-top: 0.85rem; padding: 0.65rem 0.85rem; background: rgba(255,255,255,0.75); border-radius: 8px; font-size: 0.9rem; font-weight: 600;">
+        Orientação: Evite transitar próximo às alças de acesso e verifique se há bocas de lobo obstruídas na região.
+      </p>
+
+      <div class="gps-controls">
+        <label for="zone-manual-select" style="font-size: 0.86rem; font-weight: 700;">Ou escolha sua região para simular:</label>
+        <select id="zone-manual-select" class="form-control" style="max-width: 380px; padding: 0.5rem 0.75rem;" onchange="selectZoneManually(this.value)">
+          <option value="tiete-piqueri">Marginal Tietê — Ponte do Piqueri / Freguesia do Ó</option>
+          <option value="tiete-vila-maria">Marginal Tietê — Vila Maria / Ponte das Bandeiras</option>
+          <option value="tiete-penha">Marginal Tietê — Penha / Tatuapé</option>
+          <option value="zona-sul-campo-limpo">Campo Limpo / Capão Redondo (Afluentes)</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Como funciona em 3 passos simples -->
+    <section>
+      <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">Como o Escoamento Certo protege seu trajeto</h3>
+      <div class="grid-3">
+        <article class="card">
+          <span class="status-pill pill-info">PASSO 1 • MORADOR</span>
+          <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Você avisa onde tem lixo</h4>
+          <p style="font-size: 0.92rem; color: var(--text-secondary);">
+            Viu boca de lobo entupida, entulho ou sacolas na sarjeta? Envie o local e seu CPF em menos de 30 segundos.
+          </p>
+        </article>
+        <article class="card">
+          <span class="status-pill pill-medium">PASSO 2 • PREFEITURA</span>
+          <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Prioridade por Risco e Importância</h4>
+          <p style="font-size: 0.92rem; color: var(--text-secondary);">
+            A equipe da Prefeitura classifica a importância do chamado e cruza com a previsão do Rio Tietê para agir primeiro nos pontos críticos.
+          </p>
+        </article>
+        <article class="card">
+          <span class="status-pill pill-low">PASSO 3 • TRANSPARÊNCIA</span>
+          <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Acompanhe pelo seu CPF</h4>
+          <p style="font-size: 0.92rem; color: var(--text-secondary);">
+            Sem ficar no escuro: consulte seu CPF e veja quando a equipe foi designada e quando a limpeza foi concluída.
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Sistema Integrado de Zeladoria Preventiva e Mobilidade Urbana — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    renderNavbar("index");
+
+    function applyZoneToAlert(zone, sourceText) {
+      const box = document.getElementById("gps-alert-container");
+      const pill = document.getElementById("gps-risk-pill");
+      const title = document.getElementById("gps-zone-title");
+      const info = document.getElementById("gps-coords-info");
+      const river = document.getElementById("gps-river-forecast");
+      const bus = document.getElementById("gps-bus-impact");
+      const advice = document.getElementById("gps-advice");
+
+      box.classList.remove("risk-high", "risk-medium", "risk-low");
+      pill.classList.remove("pill-critical", "pill-medium", "pill-low");
+
+      if (zone.riskLevel === "high") {
+        box.classList.add("risk-high");
+        pill.classList.add("pill-critical");
+      } else if (zone.riskLevel === "medium") {
+        box.classList.add("risk-medium");
+        pill.classList.add("pill-medium");
+      } else {
+        box.classList.add("risk-low");
+        pill.classList.add("pill-low");
+      }
+
+      pill.textContent = zone.riskLabel;
+      title.textContent = zone.name;
+      info.textContent = sourceText;
+      river.textContent = zone.riverForecast;
+      bus.textContent = zone.busImpact;
+      advice.textContent = "Orientação: " + zone.advice;
+      document.getElementById("zone-manual-select").value = zone.id;
+    }
+
+    function selectZoneManually(zoneId) {
+      const zone = ZONES_DATA.find(z => z.id === zoneId) || ZONES_DATA[0];
+      applyZoneToAlert(zone, "Região selecionada manualmente para consulta preventiva.");
+    }
+
+    function detectUserGPS() {
+      const info = document.getElementById("gps-coords-info");
+      info.textContent = "Obtendo coordenadas GPS do seu dispositivo...";
+
+      if (!navigator.geolocation) {
+        applyZoneToAlert(ZONES_DATA[0], "GPS indisponível neste navegador. Exibindo área monitorada mais próxima.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          let nearest = ZONES_DATA[0];
+          let minDist = Infinity;
+
+          ZONES_DATA.forEach(z => {
+            const d = Math.hypot(latitude - z.lat, longitude - z.lng);
+            if (d < minDist) {
+              minDist = d;
+              nearest = z;
+            }
+          });
+
+          applyZoneToAlert(
+            nearest,
+            `GPS detectado (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) — Área monitorada vinculada automaticamente.`
+          );
+        },
+        () => {
+          applyZoneToAlert(
+            ZONES_DATA[0],
+            "Permissão de GPS não concedida. Exibindo alerta preventivo da Marginal Tietê (Piqueri)."
+          );
+        },
+        { timeout: 6000 }
+      );
+    }
+  </script>
+</body>
+</html>

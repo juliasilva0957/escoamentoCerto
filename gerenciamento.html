@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerenciamento de Limpeza — Escoamento Certo (PMSP)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+      <div>
+        <span class="status-pill pill-info">OPERAÇÃO PMSP • PRIORIZAÇÃO PREVENTIVA</span>
+        <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Gerenciamento de Limpeza por Importância</h2>
+        <p style="color: var(--text-secondary);">
+          Os chamados são ordenados automaticamente pelo <strong>Nível de Importância definido pelo funcionário</strong> combinado ao risco hidrológico da Marginal Tietê.
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+        <select id="filter-status" class="form-control" style="width: auto; padding: 0.52rem 0.85rem;" onchange="renderQueue()">
+          <option value="all">Todos os status</option>
+          <option value="pending" selected>Pendentes (Em triagem + Equipe designada)</option>
+          <option value="Concluído">Concluídos</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="toast-area" class="hidden"></div>
+    <div id="queue-list"></div>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Central de Despacho de Zeladoria — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    if (!isPmspLoggedIn()) {
+      window.location.href = "login.html?restricted=1";
+    }
+    renderNavbar("gerenciamento");
+
+    function showToast(msg) {
+      const box = document.getElementById("toast-area");
+      box.className = "alert-banner alert-success";
+      box.textContent = msg;
+      setTimeout(() => {
+        box.className = "hidden";
+      }, 3500);
+    }
+
+    function updateImportance(reportId, newImportance) {
+      const reports = getReports();
+      const idx = reports.findIndex(r => r.id === reportId);
+      if (idx === -1) return;
+
+      reports[idx].importance = Number(newImportance);
+      saveReports(reports);
+      renderQueue();
+      showToast(`Importância do chamado ${reportId} atualizada! A fila foi reordenada automaticamente.`);
+    }
+
+    function dispatchTeam(reportId) {
+      const teamSelect = document.getElementById("team-" + reportId);
+      const selectedTeam = teamSelect ? teamSelect.value : "Equipe Zeladoria Marginal 01";
+      const reports = getReports();
+      const idx = reports.findIndex(r => r.id === reportId);
+      if (idx === -1) return;
+
+      reports[idx].status = "Equipe designada";
+      reports[idx].assignedTeam = selectedTeam;
+      saveReports(reports);
+      renderQueue();
+      showToast(`Equipe "${selectedTeam}" designada para o chamado ${reportId}.`);
+    }
+
+    function completeCleanup(reportId) {
+      const reports = getReports();
+      const idx = reports.findIndex(r => r.id === reportId);
+      if (idx === -1) return;
+
+      reports[idx].status = "Concluído";
+      if (!reports[idx].assignedTeam || reports[idx].assignedTeam === "Aguardando despacho") {
+        reports[idx].assignedTeam = "Equipe Zeladoria PMSP (Atendimento Direto)";
+      }
+      saveReports(reports);
+      renderQueue();
+      showToast(`Limpeza do chamado ${reportId} marcada como CONCLUÍDA!`);
+    }
+
+    function renderQueue() {
+      const filter = document.getElementById("filter-status").value;
+      let reports = getReports();
+
+      if (filter === "pending") {
+        reports = reports.filter(r => r.status !== "Concluído");
+      } else if (filter === "Concluído") {
+        reports = reports.filter(r => r.status === "Concluído");
+      }
+
+      // Sort strictly by Importance level first (4 -> 1), then by computed priority score
+      reports.sort((a, b) => {
+        const diffImp = Number(b.importance || 2) - Number(a.importance || 2);
+        if (diffImp !== 0) return diffImp;
+        return computePriorityScore(b) - computePriorityScore(a);
+      });
+
+      const container = document.getElementById("queue-list");
+      if (reports.length === 0) {
+        container.innerHTML = `<div class="card"><p>Nenhum chamado encontrado para o filtro selecionado.</p></div>`;
+        return;
+      }
+
+      container.innerHTML = reports.map((rep, index) => {
+        const imp = getImportanceMeta(rep.importance);
+        const totalScore = computePriorityScore(rep);
+        const isDone = rep.status === "Concluído";
+
+        return `
+          <article class="priority-card ${imp.cardClass}">
+            <div class="priority-header">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
+                  <span style="font-weight: 800; font-size: 0.85rem; color: var(--brand-primary);">#${index + 1} NA FILA</span>
+                  <span class="status-pill ${imp.badgeClass}">${imp.label}</span>
+                  <span class="score-badge">Score Preventivo: ${totalScore} pts</span>
+                  <span class="status-pill ${isDone ? "pill-low" : "pill-info"}">${rep.status}</span>
+                </div>
+                <h3 style="font-size: 1.15rem;">${rep.problemType} — <span style="font-weight: 600; color: var(--text-secondary);">${rep.id}</span></h3>
+                <p style="font-size: 0.92rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                  <strong>Local:</strong> ${rep.address} • <strong>Zona:</strong> ${rep.zoneName}
+                </p>
+              </div>
+
+              <div style="min-width: 220px;">
+                <label class="form-label" for="imp-${rep.id}" style="font-size: 0.8rem;">Definir Importância do Chamado:</label>
+                <select
+                  id="imp-${rep.id}"
+                  class="form-control"
+                  style="padding: 0.45rem 0.7rem; font-weight: 700;"
+                  onchange="updateImportance('${rep.id}', this.value)"
+                >
+                  <option value="4" ${Number(rep.importance) === 4 ? "selected" : ""}>4 — Crítica (Prioridade 1)</option>
+                  <option value="3" ${Number(rep.importance) === 3 ? "selected" : ""}>3 — Alta Importância</option>
+                  <option value="2" ${Number(rep.importance) === 2 ? "selected" : ""}>2 — Média Importância</option>
+                  <option value="1" ${Number(rep.importance) === 1 ? "selected" : ""}>1 — Baixa Importância</option>
+                </select>
+              </div>
+            </div>
+
+            <p style="font-size: 0.9rem; color: var(--text-main);">
+              <strong>Relato (${rep.citizenName} • CPF ${rep.cpf}):</strong> ${rep.description}
+            </p>
+            <p style="font-size: 0.83rem; color: var(--text-muted); margin-top: 0.35rem;">
+              Previsão Rio/Risco: ${rep.riverRiskScore}% • Linhas de ônibus impactadas: ${rep.busLinesCount} • Anexo: ${rep.photoName}
+            </p>
+
+            <div class="priority-actions">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+                <label for="team-${rep.id}" style="font-size: 0.84rem; font-weight: 700;">Equipe:</label>
+                <select id="team-${rep.id}" class="form-control" style="max-width: 280px; padding: 0.45rem 0.7rem;" ${isDone ? "disabled" : ""}>
+                  <option value="Equipe Zeladoria Norte 02 (Seu Zé)" ${rep.assignedTeam.includes("Norte 02") ? "selected" : ""}>Equipe Zeladoria Norte 02 (Seu Zé)</option>
+                  <option value="Equipe Hidrojato Marginal 01" ${rep.assignedTeam.includes("Hidrojato") ? "selected" : ""}>Equipe Hidrojato Marginal 01</option>
+                  <option value="Equipe Zeladoria Leste 03" ${rep.assignedTeam.includes("Leste 03") ? "selected" : ""}>Equipe Zeladoria Leste 03</option>
+                  <option value="Equipe Emergência Defesa Civil" ${rep.assignedTeam.includes("Defesa Civil") ? "selected" : ""}>Equipe Emergência Defesa Civil</option>
+                </select>
+                ${!isDone ? `<button type="button" class="btn btn-brand btn-sm" onclick="dispatchTeam('${rep.id}')">Designar Equipe</button>` : ""}
+              </div>
+
+              ${!isDone
+                ? `<button type="button" class="btn btn-outline btn-sm" style="border-color: #16a34a; color: #15803d;" onclick="completeCleanup('${rep.id}')">✓ Concluir Limpeza</button>`
+                : `<span style="font-size: 0.86rem; font-weight: 700; color: #15803d;">✓ Concluído por ${rep.assignedTeam}</span>`
+              }
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    renderQueue();
+  </script>
+</body>
+</html>

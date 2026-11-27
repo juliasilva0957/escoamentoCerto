@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novo Reporte — Escoamento Certo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container" style="max-width: 780px;">
+    <div style="margin-bottom: 1.25rem;">
+      <span class="status-pill pill-info">ATENDIMENTO AO CIDADÃO</span>
+      <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Avisar sobre Lixo ou Bueiro Entupido</h2>
+      <p style="color: var(--text-secondary);">
+        Preencha de forma rápida. Seu <strong>CPF</strong> serve para você acompanhar quando a equipe da Prefeitura for limpar o local.
+      </p>
+    </div>
+
+    <div id="feedback-box" class="hidden"></div>
+
+    <form id="report-form" class="card">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="citizen-cpf">Seu CPF *</label>
+          <input
+            type="text"
+            id="citizen-cpf"
+            class="form-control"
+            placeholder="000.000.000-00"
+            maxlength="14"
+            required
+          />
+          <span class="form-hint">Usado para consultar o andamento do seu pedido.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="citizen-name">Seu Nome (opcional)</label>
+          <input
+            type="text"
+            id="citizen-name"
+            class="form-control"
+            placeholder="Ex.: Dona Lúcia"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="report-zone">Região / Eixo Próximo *</label>
+        <select id="report-zone" class="form-control" required>
+          <option value="tiete-piqueri">Marginal Tietê — Ponte do Piqueri / Freguesia do Ó</option>
+          <option value="tiete-vila-maria">Marginal Tietê — Vila Maria / Ponte das Bandeiras</option>
+          <option value="tiete-penha">Marginal Tietê — Penha / Tatuapé</option>
+          <option value="zona-sul-campo-limpo">Campo Limpo / Capão Redondo (Afluentes)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="report-address">Rua, número ou ponto de referência *</label>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input
+            type="text"
+            id="report-address"
+            class="form-control"
+            style="flex: 1; min-width: 240px;"
+            placeholder="Ex.: Rua das Flores, perto do ponto de ônibus"
+            required
+          />
+          <button type="button" class="btn btn-outline btn-sm" onclick="fillAddressWithGPS()">
+            📍 Usar GPS
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">O que está bloqueando o escoamento? *</label>
+        <div class="chip-group" id="problem-chips">
+          <button type="button" class="chip-option selected" data-value="Lixo e sacolas entupindo boca de lobo">
+            🗑️ Lixo na boca de lobo
+          </button>
+          <button type="button" class="chip-option" data-value="Entulho e móveis bloqueando sarjeta">
+            🛋️ Entulho / Móveis
+          </button>
+          <button type="button" class="chip-option" data-value="Boca de lobo assoreada com terra e folhas">
+            🍂 Terra e folhas no ralo
+          </button>
+          <button type="button" class="chip-option" data-value="Água já começando a empoçar na via">
+            🌊 Água já empoçando
+          </button>
+        </div>
+        <input type="hidden" id="problem-type" value="Lixo e sacolas entupindo boca de lobo" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="report-photo">Foto do local (opcional)</label>
+        <input type="file" id="report-photo" class="form-control" accept="image/*" />
+        <span class="form-hint">A foto ajuda a equipe da Prefeitura a levar o caminhão e ferramentas certas.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="report-desc">Observação rápida (opcional)</label>
+        <textarea
+          id="report-desc"
+          class="form-control"
+          rows="3"
+          placeholder="Ex.: Quando chove, a água sobe rápido e entra nas casas..."
+        ></textarea>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem;">
+        <button type="submit" class="btn btn-primary" style="flex: 1; min-width: 220px;">
+          Enviar Reporte para a Prefeitura
+        </button>
+        <a href="acompanhar.html" class="btn btn-outline">Ver Meus Reportes</a>
+      </div>
+    </form>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Canal Direto com a Zeladoria Preventiva — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    renderNavbar("reportar");
+
+    const cpfInput = document.getElementById("citizen-cpf");
+    cpfInput.addEventListener("input", (e) => {
+      e.target.value = formatCPF(e.target.value);
+    });
+
+    document.querySelectorAll("#problem-chips .chip-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#problem-chips .chip-option").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        document.getElementById("problem-type").value = btn.dataset.value;
+      });
+    });
+
+    function fillAddressWithGPS() {
+      const addrInput = document.getElementById("report-address");
+      addrInput.value = "Obtendo localização GPS...";
+      if (!navigator.geolocation) {
+        addrInput.value = "Ponto próximo à Marginal Tietê (GPS indisponível)";
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          addrInput.value = `Coordenada GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}) — Próximo à via principal`;
+        },
+        () => {
+          addrInput.value = "Próximo à Ponte do Piqueri, Marginal Tietê";
+        }
+      );
+    }
+
+    document.getElementById("report-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const cpfRaw = cpfInput.value;
+      const cpfDigits = normalizeCPF(cpfRaw);
+      const feedbackBox = document.getElementById("feedback-box");
+
+      if (cpfDigits.length !== 11) {
+        feedbackBox.className = "alert-banner alert-error";
+        feedbackBox.textContent = "Por favor, digite um CPF válido com 11 números para acompanhar o seu chamado.";
+        return;
+      }
+
+      const zoneId = document.getElementById("report-zone").value;
+      const zoneObj = ZONES_DATA.find(z => z.id === zoneId) || ZONES_DATA[0];
+      const problemType = document.getElementById("problem-type").value;
+      const photoFile = document.getElementById("report-photo").files[0];
+
+      // Automatic initial importance suggestion based on zone risk and problem type
+      let initialImportance = 2;
+      if (zoneObj.riskLevel === "high" || problemType.includes("empoçando")) {
+        initialImportance = 4;
+      } else if (zoneObj.riskLevel === "medium") {
+        initialImportance = 3;
+      }
+
+      const reports = getReports();
+      const newId = "EC-2026-" + String(reports.length + 1).padStart(3, "0");
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+      const newReport = {
+        id: newId,
+        cpf: formatCPF(cpfDigits),
+        citizenName: document.getElementById("citizen-name").value.trim() || "Morador(a)",
+        zoneId: zoneObj.id,
+        zoneName: zoneObj.name,
+        address: document.getElementById("report-address").value.trim(),
+        problemType: problemType,
+        description: document.getElementById("report-desc").value.trim() || "Reporte enviado pelo portal cidadão.",
+        importance: initialImportance,
+        riverRiskScore: zoneObj.riskLevel === "high" ? 90 : (zoneObj.riskLevel === "medium" ? 72 : 45),
+        busLinesCount: zoneObj.riskLevel === "high" ? 18 : 10,
+        status: "Em triagem",
+        assignedTeam: "Aguardando despacho",
+        createdAt: dateStr,
+        photoName: photoFile ? photoFile.name : "Sem foto anexada"
+      };
+
+      reports.unshift(newReport);
+      saveReports(reports);
+
+      feedbackBox.className = "alert-banner alert-success";
+      feedbackBox.innerHTML = `
+        Reporte <strong>${newId}</strong> registrado com sucesso para o CPF <strong>${newReport.cpf}</strong>!
+        <a href="acompanhar.html?cpf=${cpfDigits}" style="text-decoration: underline; margin-left: 0.4rem;">Acompanhar agora →</a>
+      `;
+      document.getElementById("report-form").reset();
+      cpfInput.value = formatCPF(cpfDigits);
+    });
+  </script>
+</body>
+</html>

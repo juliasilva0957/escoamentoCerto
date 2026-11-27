@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Métricas — Escoamento Certo (PMSP)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+      <div>
+        <span class="status-pill pill-info">INDICADORES OPERACIONAIS • PMSP</span>
+        <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Dashboard de Limpezas Feitas e Pendentes</h2>
+        <p style="color: var(--text-secondary);">
+          Acompanhamento consolidado das ordens de limpeza preventiva na Marginal Tietê e afluentes, organizadas por status e importância.
+        </p>
+      </div>
+      <a href="gerenciamento.html" class="btn btn-brand btn-sm">Ir para Fila de Gerenciamento →</a>
+    </div>
+
+    <!-- KPIs -->
+    <section class="grid-4" style="margin-bottom: 1.5rem;" id="kpi-grid"></section>
+
+    <!-- Gráficos comparativos -->
+    <section class="grid-2" style="margin-bottom: 1.5rem;">
+      <div class="card">
+        <h3 style="font-size: 1.12rem; margin-bottom: 0.3rem;">Feitas vs. Pendentes por Região</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.1rem;">
+          Proporção de limpezas concluídas (verde) e pendentes (laranja) em cada eixo monitorado.
+        </p>
+        <div id="zone-bars"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size: 1.12rem; margin-bottom: 0.3rem;">Chamados Pendentes por Nível de Importância</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.1rem;">
+          Distribuição da fila ativa conforme a classificação de importância atribuída pela Prefeitura.
+        </p>
+        <div id="importance-breakdown"></div>
+      </div>
+    </section>
+
+    <!-- Tabela resumida -->
+    <section class="card">
+      <h3 style="font-size: 1.12rem; margin-bottom: 0.85rem;">Resumo Geral dos Registros</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Protocolo</th>
+              <th>Região</th>
+              <th>Problema</th>
+              <th>Importância</th>
+              <th>Status</th>
+              <th>Equipe</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Painel Executivo de Drenagem Preventiva — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    if (!isPmspLoggedIn()) {
+      window.location.href = "login.html?restricted=1";
+    }
+    renderNavbar("dashboard");
+
+    function renderDashboard() {
+      const reports = getReports();
+      const total = reports.length;
+      const doneList = reports.filter(r => r.status === "Concluído");
+      const pendingList = reports.filter(r => r.status !== "Concluído");
+      const criticalPending = pendingList.filter(r => Number(r.importance) === 4).length;
+      const completionRate = total > 0 ? Math.round((doneList.length / total) * 100) : 0;
+
+      document.getElementById("kpi-grid").innerHTML = `
+        <div class="card">
+          <div class="kpi-label">Total de Reportes</div>
+          <div class="kpi-value">${total}</div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Chamados registrados no ciclo atual</p>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--risk-low);">
+          <div class="kpi-label">Limpezas Feitas</div>
+          <div class="kpi-value" style="color: #15803d;">${doneList.length}</div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Taxa de conclusão: <strong>${completionRate}%</strong></p>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--risk-high);">
+          <div class="kpi-label">Limpezas Pendentes</div>
+          <div class="kpi-value" style="color: #c2410c;">${pendingList.length}</div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Em triagem ou com equipe em campo</p>
+        </div>
+        <div class="card" style="border-left: 4px solid var(--risk-critical);">
+          <div class="kpi-label">Pendentes Críticos (Nível 4)</div>
+          <div class="kpi-value" style="color: #b91c1c;">${criticalPending}</div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Prioridade máxima antes do pico do rio</p>
+        </div>
+      `;
+
+      // Zone bars
+      const zoneBarsHtml = ZONES_DATA.map(z => {
+        const zReports = reports.filter(r => r.zoneId === z.id);
+        const zDone = zReports.filter(r => r.status === "Concluído").length;
+        const zPend = zReports.length - zDone;
+        const donePct = zReports.length > 0 ? (zDone / zReports.length) * 100 : 0;
+        const pendPct = zReports.length > 0 ? (zPend / zReports.length) * 100 : 0;
+
+        return `
+          <div class="bar-row">
+            <div class="bar-meta">
+              <span>${z.name.split("—")[1] ? z.name.split("—")[1].trim() : z.name}</span>
+              <span>${zDone} feita(s) • ${zPend} pendente(s)</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill-done" style="width: ${donePct}%;" title="Feitas: ${zDone}"></div>
+              <div class="bar-fill-pending" style="width: ${pendPct}%;" title="Pendentes: ${zPend}"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+      document.getElementById("zone-bars").innerHTML = zoneBarsHtml;
+
+      // Importance breakdown
+      const levels = [4, 3, 2, 1];
+      const impHtml = levels.map(lvl => {
+        const meta = getImportanceMeta(lvl);
+        const count = pendingList.filter(r => Number(r.importance) === lvl).length;
+        const pct = pendingList.length > 0 ? Math.round((count / pendingList.length) * 100) : 0;
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--border-color);">
+            <span class="status-pill ${meta.badgeClass}">${meta.label}</span>
+            <span style="font-weight: 800; font-size: 0.95rem;">${count} pendente(s) (${pct}%)</span>
+          </div>
+        `;
+      }).join("");
+      document.getElementById("importance-breakdown").innerHTML = impHtml;
+
+      // Summary table sorted by importance
+      const sorted = [...reports].sort((a, b) => Number(b.importance) - Number(a.importance));
+      document.getElementById("dashboard-table-body").innerHTML = sorted.map(r => {
+        const imp = getImportanceMeta(r.importance);
+        return `
+          <tr>
+            <td><strong>${r.id}</strong></td>
+            <td>${r.zoneName}</td>
+            <td>${r.problemType}</td>
+            <td><span class="status-pill ${imp.badgeClass}">${imp.label}</span></td>
+            <td>${r.status}</td>
+            <td>${r.assignedTeam}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    renderDashboard();
+  </script>
+</body>
+</html>
