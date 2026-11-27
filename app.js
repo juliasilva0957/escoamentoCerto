@@ -4,7 +4,11 @@
 
 const STORAGE_KEY_REPORTS = "escoamento_certo_reports_v1";
 const STORAGE_KEY_AUTH = "escoamento_certo_pmsp_auth_v1";
-window.API_BASE = window.API_BASE || "http://127.0.0.1:8000";
+window.API_BASE = window.API_BASE || (
+  window.location.origin.startsWith("http")
+    ? window.location.origin
+    : "http://127.0.0.1:8000"
+);
 
 const ZONES_DATA = [
   {

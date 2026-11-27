@@ -16,7 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DB_PATH = os.path.join(BASE_DIR, "escoamento_certo.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 CSV_PATH = os.path.join(BASE_DIR, "data", "forecast_vs_ana.csv")
@@ -27,7 +28,7 @@ os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "").strip()
 ALLOW_DEV_RECAPTCHA_BYPASS = os.getenv("ALLOW_DEV_RECAPTCHA_BYPASS", "true").lower() == "true"
 
-app = FastAPI(title="Escoamento Certo API", version="1.4.0")
+app = FastAPI(title="Escoamento Certo API", version="1.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -285,7 +286,6 @@ def get_zone_report_counts(conn: sqlite3.Connection) -> dict[str, dict[str, int]
 
 
 def zone_criticality_from_count(report_count: int) -> tuple[str, str, int]:
-    """Retorna (level_key, label, bonus_points) conforme o volume de reportes na área."""
     if report_count >= 4:
         return "critical", f"CRÍTICO ({report_count} reportes na área)", 24
     if report_count >= 2:
@@ -313,7 +313,7 @@ def build_audio_description(data: dict) -> str:
     )
 
 
-def serialize_report(row: sqlite3.Row, zone_counts: dict[str, dict[str, int]], include_raw_cpf: bool = False) -> dict:
+def serialize_report(row: sqlite3.Row, zone_counts: dict[str, dict[str, int]]) -> dict:
     data = dict(row)
     z_info = zone_counts.get(data["zoneId"], {"total": 1, "pending": 0})
     z_total = z_info["total"]
@@ -323,8 +323,7 @@ def serialize_report(row: sqlite3.Row, zone_counts: dict[str, dict[str, int]], i
     data["zoneCriticalityLevel"] = crit_key
     data["zoneCriticalityLabel"] = crit_label
     data["maskedCpf"] = mask_cpf(data.get("cpf"))
-    if not include_raw_cpf:
-        data.pop("cpf", None)
+    data.pop("cpf", None)
     data["priorityScore"] = compute_priority_score(data, z_total)
     data["audioDescription"] = build_audio_description(data)
     return data
@@ -515,7 +514,7 @@ def health():
     return {
         "status": "ok",
         "service": "Escoamento Certo API",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "csvLoaded": os.path.exists(CSV_PATH),
     }
 
@@ -631,7 +630,7 @@ def list_reports(
         else:
             rows = conn.execute("SELECT * FROM reports").fetchall()
 
-    items = [serialize_report(r, zone_counts, include_raw_cpf=False) for r in rows]
+    items = [serialize_report(r, zone_counts) for r in rows]
 
     if status == "pending":
         items = [r for r in items if r["status"] != "Concluído"]
@@ -687,7 +686,6 @@ async def create_report(
         ).fetchone()["c"]
         projected_zone_count = existing_zone_count + 1
 
-        # Quanto mais reportes na área, maior a importância base sugerida
         initial_importance = 2
         if zone["riskLevel"] == "high" or "empoçando" in problemType.lower() or projected_zone_count >= 4:
             initial_importance = 4
@@ -732,7 +730,7 @@ async def create_report(
         zone_counts = get_zone_report_counts(conn)
         row = conn.execute("SELECT * FROM reports WHERE id = ?", (new_id,)).fetchone()
 
-    return serialize_report(row, zone_counts, include_raw_cpf=False)
+    return serialize_report(row, zone_counts)
 
 
 @app.patch("/api/reports/{report_id}/importance")
@@ -747,7 +745,7 @@ def update_importance(report_id: str, payload: ImportanceUpdate):
             raise HTTPException(status_code=404, detail="Reporte não encontrado.")
         zone_counts = get_zone_report_counts(conn)
         row = conn.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
-    return serialize_report(row, zone_counts, include_raw_cpf=False)
+    return serialize_report(row, zone_counts)
 
 
 @app.patch("/api/reports/{report_id}/dispatch")
@@ -762,7 +760,7 @@ def dispatch_team(report_id: str, payload: DispatchUpdate):
             raise HTTPException(status_code=404, detail="Reporte não encontrado.")
         zone_counts = get_zone_report_counts(conn)
         row = conn.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
-    return serialize_report(row, zone_counts, include_raw_cpf=False)
+    return serialize_report(row, zone_counts)
 
 
 @app.patch("/api/reports/{report_id}/complete")
@@ -781,7 +779,7 @@ def complete_cleanup(report_id: str):
         conn.commit()
         zone_counts = get_zone_report_counts(conn)
         updated = conn.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
-    return serialize_report(updated, zone_counts, include_raw_cpf=False)
+    return serialize_report(updated, zone_counts)
 
 
 @app.get("/api/dashboard/summary")
@@ -850,3 +848,8 @@ def dashboard_summary():
         "heatmapByZone": heatmap_by_zone,
         "pendingByImportance": pending_by_importance,
     }
+
+
+# Monta os arquivos estáticos do frontend ao final para não conflitar com as rotas /api/*
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
