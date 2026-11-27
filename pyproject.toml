@@ -1,0 +1,22 @@
+[project]
+name = "escoamento-certo"
+version = "1.5.0"
+description = "Sistema Escoamento Certo — Zeladoria Preventiva e Mobilidade Urbana (PMSP)"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.165.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.14.4",
+    "python-multipart==0.0.34",
+]
+
+[tool.vercel]
+entrypoint = "backend.main:app"
+```[cite: 8]
+
+### Como aplicar e tentar o deploy novamente
+1. Salve o `pyproject.toml` na raiz do repositório (`escoamentoCerto/pyproject.toml`)[cite: 8].
+2. Faça `commit` e `push` para a branch conectada na Vercel (`juliasilva0957/escoamentoCerto`)[cite: 8].
+3. Na Vercel, clique em **Redeploy** (ou aguarde o novo build disparar automaticamente).
+
+*(Observação prática: em ambientes serverless como a Vercel, o sistema de arquivos local pode ser efêmero/somente leitura em alguns diretórios — como `escoamento_certo.db` ou `uploads/` —, então vale ficar de olho nisso nos testes após o build passar.)*
