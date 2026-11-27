@@ -11,6 +11,10 @@ from typing import Optional
 import urllib.parse
 import urllib.request
 
+import os
+
+INTERNAL_BACKEND_URL = os.getenv("BACKEND_URL")
+
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
