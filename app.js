@@ -4,6 +4,7 @@
 
 const STORAGE_KEY_REPORTS = "escoamento_certo_reports_v1";
 const STORAGE_KEY_AUTH = "escoamento_certo_pmsp_auth_v1";
+window.API_BASE = window.API_BASE || "http://127.0.0.1:8000";
 
 const ZONES_DATA = [
   {
@@ -15,7 +16,9 @@ const ZONES_DATA = [
     riskLabel: "ALTO RISCO DE ALAGAMENTO",
     riverForecast: "Nível do Rio Tietê em elevação (+1,45m com margem de cautela). Pico previsto em 2h30.",
     busImpact: "18 linhas de ônibus municipais e intermunicipais afetadas no corredor.",
-    advice: "Evite transitar próximo às alças de acesso e verifique se há bocas de lobo obstruídas na região."
+    advice: "Evite transitar próximo às alças de acesso e verifique se há bocas de lobo obstruídas na região.",
+    riverRiskScore: 92,
+    busLinesCount: 18
   },
   {
     id: "tiete-vila-maria",
@@ -26,7 +29,9 @@ const ZONES_DATA = [
     riskLabel: "ALTO RISCO DE ALAGAMENTO",
     riverForecast: "Previsão corrigida indica acúmulo rápido nas pistas locais nas próximas 2 horas.",
     busImpact: "24 linhas de transporte coletivo e terminais de conexão impactados.",
-    advice: "Moradores de ruas baixas devem elevar móveis e itens essenciais preventivamente."
+    advice: "Moradores de ruas baixas devem elevar móveis e itens essenciais preventivamente.",
+    riverRiskScore: 89,
+    busLinesCount: 24
   },
   {
     id: "tiete-penha",
@@ -37,7 +42,9 @@ const ZONES_DATA = [
     riskLabel: "ATENÇÃO — RISCO MODERADO",
     riverForecast: "Chuva moderada prevista na bacia leste; margem de cautela ativada para drenagem.",
     busImpact: "11 linhas de ônibus monitoradas nos acessos à Radial e Marginal.",
-    advice: "Não descarte sacos de lixo nas calçadas antes da coleta para evitar entupimento de bueiros."
+    advice: "Não descarte sacos de lixo nas calçadas antes da coleta para evitar entupimento de bueiros.",
+    riverRiskScore: 74,
+    busLinesCount: 11
   },
   {
     id: "zona-sul-campo-limpo",
@@ -48,21 +55,24 @@ const ZONES_DATA = [
     riskLabel: "SITUAÇÃO CONTROLADA",
     riverForecast: "Nível dos córregos dentro da normalidade nas próximas 4 horas.",
     busImpact: "Operação normal nos corredores locais.",
-    advice: "Continue reportando pontos com acúmulo de entulho para limpeza preventiva."
+    advice: "Continue reportando pontos com acúmulo de entulho para limpeza preventiva.",
+    riverRiskScore: 42,
+    busLinesCount: 6
   }
 ];
 
 const INITIAL_REPORTS = [
   {
     id: "EC-2026-001",
-    cpf: "111.222.333-44",
-    citizenName: "Dona Lúcia",
+    cpf: "12345678901",
+    maskedCpf: "123.***.***-01",
+    citizenName: "Cidadão (CPF 123.***.***-01)",
     zoneId: "tiete-piqueri",
     zoneName: "Marginal Tietê — Ponte do Piqueri / Freguesia do Ó",
     address: "Rua Manuel Barbosa, 210 — próximo à boca de lobo da esquina",
     problemType: "Lixo e sacolas entupindo boca de lobo",
     description: "Muita sacola plástica e galhos cobrindo a grade do bueiro antes da subida da pista local.",
-    importance: 4, // 4 = Crítica, 3 = Alta, 2 = Média, 1 = Baixa
+    importance: 4,
     riverRiskScore: 92,
     busLinesCount: 18,
     status: "Equipe designada",
@@ -72,8 +82,9 @@ const INITIAL_REPORTS = [
   },
   {
     id: "EC-2026-002",
-    cpf: "555.666.777-88",
-    citizenName: "Carlos Eduardo",
+    cpf: "98765432100",
+    maskedCpf: "987.***.***-00",
+    citizenName: "Cidadão (CPF 987.***.***-00)",
     zoneId: "tiete-vila-maria",
     zoneName: "Marginal Tietê — Vila Maria / Ponte das Bandeiras",
     address: "Av. Morvan Dias de Figueiredo, altura nº 1450",
@@ -89,8 +100,9 @@ const INITIAL_REPORTS = [
   },
   {
     id: "EC-2026-003",
-    cpf: "111.222.333-44",
-    citizenName: "Dona Lúcia",
+    cpf: "12345678901",
+    maskedCpf: "123.***.***-01",
+    citizenName: "Cidadão (CPF 123.***.***-01)",
     zoneId: "tiete-penha",
     zoneName: "Marginal Tietê — Penha / Tatuapé",
     address: "Rua Guaiaúna, 480 — acesso Marginal",
@@ -106,8 +118,9 @@ const INITIAL_REPORTS = [
   },
   {
     id: "EC-2026-004",
-    cpf: "999.888.777-66",
-    citizenName: "Mariana Souza",
+    cpf: "45678912344",
+    maskedCpf: "456.***.***-44",
+    citizenName: "Cidadão (CPF 456.***.***-44)",
     zoneId: "tiete-piqueri",
     zoneName: "Marginal Tietê — Ponte do Piqueri / Freguesia do Ó",
     address: "Av. Raimundo Pereira de Magalhães, 920",
@@ -123,8 +136,9 @@ const INITIAL_REPORTS = [
   },
   {
     id: "EC-2026-005",
-    cpf: "222.333.444-55",
-    citizenName: "João Pedro",
+    cpf: "78912345699",
+    maskedCpf: "789.***.***-99",
+    citizenName: "Cidadão (CPF 789.***.***-99)",
     zoneId: "zona-sul-campo-limpo",
     zoneName: "Campo Limpo / Capão Redondo (Afluentes)",
     address: "Estrada do Campo Limpo, 3100",
@@ -139,6 +153,32 @@ const INITIAL_REPORTS = [
     photoName: "grelha_campolimpo.jpg"
   }
 ];
+
+function onlyDigits(val) {
+  return String(val || "").replace(/\D/g, "");
+}
+
+function formatCpfMasked(val) {
+  const d = onlyDigits(val);
+  if (d.length !== 11) return "Não informado";
+  return `${d.slice(0, 3)}.***.***-${d.slice(9)}`;
+}
+
+function getZoneAreaCriticality(count) {
+  if (count >= 4) return { level: "critical", label: `CRÍTICO (${count} reportes na área)`, bonus: 24 };
+  if (count >= 2) return { level: "high", label: `ALTO (${count} reportes na área)`, bonus: 14 };
+  if (count === 1) return { level: "medium", label: "MODERADO (1 reporte na área)", bonus: 6 };
+  return { level: "low", label: "BAIXO (0 reportes na área)", bonus: 0 };
+}
+
+function ensureFavicon() {
+  if (document.querySelector('link[rel="icon"]')) return;
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/svg+xml";
+  link.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='6' fill='%230f4c81'/%3E%3Cpath d='M14 4C14 4 7.5 11.5 7.5 16.8C7.5 20.4 10.4 23.3 14 23.3C17.6 23.3 20.5 20.4 20.5 16.8C20.5 11.5 14 4 14 4Z' fill='%23ffffff'/%3E%3C/svg%3E";
+  document.head.appendChild(link);
+}
 
 function getReports() {
   const raw = localStorage.getItem(STORAGE_KEY_REPORTS);
@@ -172,56 +212,58 @@ function setPmspLoggedIn(logged, userName = "Marina (Defesa Civil / PMSP)") {
 }
 
 function logoutPmsp() {
+  if (typeof stopSpeech === "function") stopSpeech();
   setPmspLoggedIn(false);
   window.location.href = "index.html";
 }
 
+function renderBrandLogoHTML() {
+  return `
+    <div class="brand-icon" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 3C14 3 6.5 11.2 6.5 16.8C6.5 20.94 9.86 24.3 14 24.3C18.14 24.3 21.5 20.94 21.5 16.8C21.5 11.2 14 3 14 3Z" fill="white" fill-opacity="0.94"/>
+        <path d="M9.5 16.5C11.2 15.2 12.8 17.8 14.5 16.5C16.2 15.2 17.8 17.8 19.5 16.5" stroke="#0f4c81" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+  `;
+}
+
 function renderNavbar(activePage) {
+  ensureFavicon();
   const logged = isPmspLoggedIn();
   const navContainer = document.getElementById("navbar-mount");
   if (!navContainer) return;
 
   const restrictedLinks = logged
     ? `
-      <a href="gerenciamento.html" class="nav-link ${activePage === "gerenciamento" ? "active" : ""}">Gerenciar Limpeza</a>
-      <a href="dashboard.html" class="nav-link ${activePage === "dashboard" ? "active" : ""}">Dashboard</a>
+      <a href="gerenciamento.html" class="nav-link ${activePage === "gerenciamento" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Gerenciar Limpeza</a>
+      <a href="dashboard.html" class="nav-link ${activePage === "dashboard" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Dashboard</a>
+      <a href="dashboardPrevisoes.html" class="nav-link ${activePage === "previsoes" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Previsões</a>
       <button type="button" class="btn-logout" onclick="logoutPmsp()">Sair PMSP</button>
     `
     : `
-      <a href="login.html" class="btn-pmsp ${activePage === "login" ? "active" : ""}">Login PMSP</a>
+      <a href="login.html" class="btn-pmsp ${activePage === "login" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Login PMSP</a>
     `;
 
   navContainer.innerHTML = `
     <header class="navbar">
       <div class="navbar-inner">
-        <a href="index.html" class="brand">
-          <div class="brand-icon">EC</div>
+        <a href="index.html" class="brand" onclick="if (typeof stopSpeech === 'function') stopSpeech();">
+          ${renderBrandLogoHTML()}
           <div class="brand-text">
             <h1>Escoamento Certo</h1>
             <span>Prefeitura de São Paulo • Zeladoria Preventiva</span>
           </div>
         </a>
         <nav class="nav-links" aria-label="Navegação Principal">
-          <a href="index.html" class="nav-link ${activePage === "index" ? "active" : ""}">Início & Alerta</a>
-          <a href="reportar.html" class="nav-link ${activePage === "reportar" ? "active" : ""}">Novo Reporte</a>
-          <a href="acompanhar.html" class="nav-link ${activePage === "acompanhar" ? "active" : ""}">Acompanhar CPF</a>
+          <a href="index.html" class="nav-link ${activePage === "index" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Início &amp; Alerta</a>
+          <a href="reportar.html" class="nav-link ${activePage === "reportar" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Novo Reporte</a>
+          <a href="acompanhar.html" class="nav-link ${activePage === "acompanhar" ? "active" : ""}" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Acompanhar CPF</a>
           ${restrictedLinks}
         </nav>
       </div>
     </header>
   `;
-}
-
-function formatCPF(value) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  return digits
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-}
-
-function normalizeCPF(value) {
-  return value.replace(/\D/g, "");
 }
 
 function getImportanceMeta(level) {
@@ -238,9 +280,10 @@ function getImportanceMeta(level) {
   return { level: 1, label: "Baixa Importância", badgeClass: "pill-low", cardClass: "imp-baixa", weight: 25 };
 }
 
-function computePriorityScore(report) {
-  const impWeight = Number(report.importance || 2) * 25; // up to 100
-  const riverPart = Math.round((Number(report.riverRiskScore || 60) * 0.4)); // up to 40
-  const busPart = Math.min(20, Number(report.busLinesCount || 8)); // up to 20
-  return impWeight + riverPart + busPart;
+function computePriorityScore(report, zoneReportCount = 1) {
+  const impWeight = Number(report.importance || 2) * 25;
+  const riverPart = Math.round((Number(report.riverRiskScore || 60) * 0.35));
+  const busPart = Math.min(15, Number(report.busLinesCount || 8));
+  const areaBonus = getZoneAreaCriticality(zoneReportCount).bonus;
+  return impWeight + riverPart + busPart + areaBonus;
 }

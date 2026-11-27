@@ -9,142 +9,132 @@
 <body>
   <div id="navbar-mount"></div>
 
-  <main class="container" style="max-width: 860px;">
+  <main class="container" style="max-width: 820px;">
     <div style="margin-bottom: 1.25rem;">
-      <span class="status-pill pill-info">TRANSPARÊNCIA AO CIDADÃO</span>
-      <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Acompanhar Meus Reportes pelo CPF</h2>
+      <span class="status-pill pill-info">MEUS CHAMADOS • CONSULTA POR CPF</span>
+      <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Acompanhar Meus Reportes</h2>
       <p style="color: var(--text-secondary);">
-        Digite o mesmo CPF informado na abertura do reporte para saber se a Prefeitura já visualizou, definiu a prioridade e enviou a equipe.
+        Digite o CPF utilizado no envio para visualizar os reportes que você registrou e o status de atendimento da Prefeitura.
       </p>
+      <div class="audio-desc-box hidden">
+        Tela de acompanhamento individual por CPF. Digite seu CPF de 11 dígitos e clique em Buscar Meus Reportes para ver protocolo, status, criticidade da região e equipe designada.
+      </div>
     </div>
 
-    <div class="card" style="margin-bottom: 1.5rem;">
-      <form id="cpf-search-form" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
-        <div style="flex: 1; min-width: 230px;">
-          <label class="form-label" for="search-cpf">CPF do Cidadão</label>
+    <div id="track-alert" class="hidden"></div>
+
+    <form id="track-form" class="card" style="margin-bottom: 1.5rem;">
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 240px;">
+          <label class="form-label" for="track-cpf">CPF (11 dígitos) *</label>
           <input
             type="text"
-            id="search-cpf"
+            id="track-cpf"
             class="form-control"
-            placeholder="000.000.000-00"
+            placeholder="Ex.: 123.456.789-01"
             maxlength="14"
             required
           />
         </div>
-        <button type="submit" class="btn btn-brand">Buscar Chamados</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="fillDemoCPF()">
-          Testar CPF Exemplo (111.222.333-44)
+        <button type="submit" id="track-submit-btn" class="btn btn-brand">
+          🔍 Buscar Meus Reportes
         </button>
-      </form>
-    </div>
+      </div>
+    </form>
 
-    <div id="results-area"></div>
+    <div id="my-reports-list"></div>
   </main>
 
   <footer class="footer">
-    Escoamento Certo • Acompanhamento de Solicitações — Prefeitura de São Paulo
+    Escoamento Certo • Consulta de Chamados do Cidadão — Prefeitura de São Paulo
   </footer>
 
   <script src="app.js"></script>
+  <script src="accessibility.js"></script>
   <script>
     renderNavbar("acompanhar");
 
-    const searchInput = document.getElementById("search-cpf");
-    searchInput.addEventListener("input", (e) => {
-      e.target.value = formatCPF(e.target.value);
-    });
+    document.getElementById("track-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById("track-alert");
+      const listEl = document.getElementById("my-reports-list");
+      const btn = document.getElementById("track-submit-btn");
+      const digits = onlyDigits(document.getElementById("track-cpf").value);
 
-    function fillDemoCPF() {
-      searchInput.value = "111.222.333-44";
-      searchByCPF("11122233344");
-    }
-
-    function renderTimeline(status) {
-      const step1 = "done";
-      const step2 = (status === "Em triagem" || status === "Equipe designada" || status === "Concluído") ? "done" : "";
-      const step3 = status === "Equipe designada" ? "current" : (status === "Concluído" ? "done" : "");
-      const step4 = status === "Concluído" ? "done" : "";
-
-      return `
-        <div class="timeline">
-          <div class="timeline-step ${step1}">1. Recebido</div>
-          <div class="timeline-step ${step2}">2. Visto pela PMSP</div>
-          <div class="timeline-step ${step3}">3. Equipe Designada</div>
-          <div class="timeline-step ${step4}">4. Limpeza Concluída</div>
-        </div>
-      `;
-    }
-
-    function searchByCPF(cpfDigits) {
-      const resultsArea = document.getElementById("results-area");
-      const allReports = getReports();
-      const matches = allReports.filter(r => normalizeCPF(r.cpf) === cpfDigits);
-
-      if (matches.length === 0) {
-        resultsArea.innerHTML = `
-          <div class="card" style="text-align: center; padding: 2rem;">
-            <p style="font-weight: 700; font-size: 1.05rem; margin-bottom: 0.4rem;">Nenhum reporte encontrado para este CPF.</p>
-            <p style="color: var(--text-muted); margin-bottom: 1rem;">Verifique os números digitados ou abra um novo reporte agora.</p>
-            <a href="reportar.html" class="btn btn-primary btn-sm">+ Abrir Novo Reporte</a>
-          </div>
-        `;
+      if (digits.length !== 11) {
+        alertBox.className = "alert-banner alert-error";
+        alertBox.textContent = "Digite um CPF válido com 11 dígitos.";
+        listEl.innerHTML = "";
         return;
       }
 
-      resultsArea.innerHTML = `
-        <p style="font-weight: 700; margin-bottom: 0.85rem; color: var(--text-secondary);">
-          Encontramos <strong>${matches.length}</strong> reporte(s) vinculado(s) ao CPF <strong>${formatCPF(cpfDigits)}</strong>:
-        </p>
-        ${matches.map(rep => {
-          const imp = getImportanceMeta(rep.importance);
-          const statusBadge = rep.status === "Concluído"
-            ? "pill-low"
-            : (rep.status === "Equipe designada" ? "pill-info" : "pill-medium");
+      btn.disabled = true;
+      btn.textContent = "Buscando...";
+      alertBox.className = "hidden";
 
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports?cpf=${encodeURIComponent(digits)}`);
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          alertBox.className = "alert-banner alert-error";
+          alertBox.textContent = data.detail || "Não foi possível consultar os reportes.";
+          listEl.innerHTML = "";
+          return;
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+          alertBox.className = "alert-banner alert-error";
+          alertBox.textContent = `Nenhum reporte encontrado para o CPF ${formatCpfMasked(digits)}.`;
+          listEl.innerHTML = "";
+          return;
+        }
+
+        const prefs = getA11yPrefs();
+        const hiddenAudio = prefs.audioDescription ? "" : "hidden";
+
+        listEl.innerHTML = data.map(rep => {
+          const imp = getImportanceMeta(rep.importance);
+          const isDone = rep.status === "Concluído";
+          const areaCrit = rep.zoneCriticalityLabel || getZoneAreaCriticality(rep.zoneReportCount || 1).label;
           return `
-            <article class="card" style="margin-bottom: 1rem;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+            <article class="priority-card ${imp.cardClass}">
+              <div class="priority-header">
                 <div>
-                  <span style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted);">${rep.id} • ${rep.createdAt}</span>
-                  <h3 style="font-size: 1.12rem; margin: 0.2rem 0;">${rep.problemType}</h3>
-                  <p style="font-size: 0.92rem; color: var(--text-secondary);">${rep.address} (${rep.zoneName})</p>
+                  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
+                    <span class="score-badge">${rep.id}</span>
+                    <span class="status-pill ${isDone ? "pill-low" : "pill-info"}">${rep.status}</span>
+                    <span class="status-pill ${imp.badgeClass}">${imp.label}</span>
+                    <span class="status-pill pill-medium">Área: ${areaCrit}</span>
+                  </div>
+                  <h3 style="font-size: 1.12rem;">${rep.problemType}</h3>
+                  <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                    <strong>Local:</strong> ${rep.address} • <strong>Zona:</strong> ${rep.zoneName}
+                  </p>
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
-                  <span class="status-pill ${statusBadge}">${rep.status}</span>
-                  <span class="status-pill ${imp.badgeClass}">Importância: ${imp.label}</span>
-                </div>
+                <span style="font-size: 0.82rem; color: var(--text-muted);">${rep.createdAt}</span>
               </div>
-              <p style="margin-top: 0.65rem; font-size: 0.9rem; color: var(--text-main);">
-                <strong>Equipe responsável:</strong> ${rep.assignedTeam}
+              <p style="font-size: 0.9rem; color: var(--text-main);">${rep.description}</p>
+              <p style="font-size: 0.84rem; color: var(--text-secondary); margin-top: 0.45rem;">
+                <strong>Equipe:</strong> ${rep.assignedTeam} • <strong>Anexo:</strong> ${rep.photoName}
               </p>
-              ${renderTimeline(rep.status)}
+              <div class="audio-desc-box ${hiddenAudio}">${rep.audioDescription || ""}</div>
             </article>
           `;
-        }).join("")}
-      `;
-    }
+        }).join("");
 
-    document.getElementById("cpf-search-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const digits = normalizeCPF(searchInput.value);
-      if (digits.length !== 11) {
-        document.getElementById("results-area").innerHTML = `
-          <div class="alert-banner alert-error">Digite um CPF completo com 11 dígitos.</div>
-        `;
-        return;
+        const msg = `Encontrados ${data.length} reporte(s) para o CPF ${formatCpfMasked(digits)}.`;
+        if (prefs.audioDescription && typeof speakText === "function") {
+          speakText(msg);
+        }
+      } catch (err) {
+        alertBox.className = "alert-banner alert-error";
+        alertBox.textContent = "Erro de conexão com o backend em " + window.API_BASE;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Buscar Meus Reportes";
       }
-      searchByCPF(digits);
     });
-
-    // Check URL query param ?cpf=...
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("cpf")) {
-      const qCpf = normalizeCPF(params.get("cpf"));
-      if (qCpf.length === 11) {
-        searchInput.value = formatCPF(qCpf);
-        searchByCPF(qCpf);
-      }
-    }
   </script>
 </body>
 </html>

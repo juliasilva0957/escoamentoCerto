@@ -18,6 +18,9 @@
       <p style="color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 1.25rem;">
         Entre com sua credencial funcional para acessar o <strong>Gerenciamento de Limpeza</strong> e a <strong>Dashboard Operacional</strong>.
       </p>
+      <div class="audio-desc-box hidden">
+        Tela de autenticação institucional da Prefeitura de São Paulo. Preencha e-mail funcional, senha, resolva o reCAPTCHA e clique em Entrar no Painel PMSP.
+      </div>
 
       <form id="login-form">
         <div class="form-group">
@@ -42,7 +45,9 @@
           />
         </div>
 
-        <button type="submit" class="btn btn-brand" style="width: 100%; margin-top: 0.5rem;">
+        <div id="recaptcha-login" class="form-group"></div>
+
+        <button type="submit" id="login-submit-btn" class="btn btn-brand" style="width: 100%; margin-top: 0.5rem;">
           Entrar no Painel PMSP
         </button>
       </form>
@@ -58,8 +63,10 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="accessibility.js"></script>
   <script>
     renderNavbar("login");
+    mountRecaptchaWidget("recaptcha-login");
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("restricted") === "1") {
@@ -68,20 +75,53 @@
       box.textContent = "Acesso restrito: faça o Login PMSP para abrir o Gerenciamento de Limpeza ou a Dashboard.";
     }
 
-    document.getElementById("login-form").addEventListener("submit", (e) => {
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = document.getElementById("pmsp-email").value.trim();
       const pass = document.getElementById("pmsp-pass").value.trim();
+      const box = document.getElementById("auth-alert");
+      const btn = document.getElementById("login-submit-btn");
 
       if (!email || !pass) {
-        const box = document.getElementById("auth-alert");
         box.className = "alert-banner alert-error";
         box.textContent = "Preencha o e-mail institucional e a senha.";
         return;
       }
 
-      setPmspLoggedIn(true, email);
-      window.location.href = "gerenciamento.html";
+      const recaptchaToken = getRecaptchaResponseToken();
+      if (!recaptchaToken) {
+        box.className = "alert-banner alert-error";
+        box.textContent = "Confirme o reCAPTCHA antes de entrar.";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Autenticando...";
+
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: pass, recaptchaToken })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.authenticated) {
+          box.className = "alert-banner alert-error";
+          box.textContent = data.detail || "Falha na autenticação institucional.";
+          return;
+        }
+
+        if (typeof stopSpeech === "function") stopSpeech();
+        setPmspLoggedIn(true, data.userName || email);
+        window.location.href = "gerenciamento.html";
+      } catch (err) {
+        box.className = "alert-banner alert-error";
+        box.textContent = "Erro de conexão com o backend em " + window.API_BASE;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Entrar no Painel PMSP";
+      }
     });
   </script>
 </body>

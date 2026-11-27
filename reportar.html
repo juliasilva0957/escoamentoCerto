@@ -11,39 +11,30 @@
 
   <main class="container" style="max-width: 780px;">
     <div style="margin-bottom: 1.25rem;">
-      <span class="status-pill pill-info">ATENDIMENTO AO CIDADÃO</span>
+      <span class="status-pill pill-info">CANAL DO CIDADÃO • REPORTE E ACOMPANHAMENTO</span>
       <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Avisar sobre Lixo ou Bueiro Entupido</h2>
       <p style="color: var(--text-secondary);">
-        Preencha de forma rápida. Seu <strong>CPF</strong> serve para você acompanhar quando a equipe da Prefeitura for limpar o local.
+        Informe seu CPF para acompanhar os reportes que você enviou. Quanto mais reportes existem na mesma região, mais crítica a área se torna na fila preventiva.
       </p>
+      <div class="audio-desc-box hidden">
+        Tela de reporte de drenagem urbana. Informe seu CPF, escolha a região, o endereço ou GPS, o tipo de bloqueio, foto opcional e confirme o reCAPTCHA para enviar.
+      </div>
     </div>
 
     <div id="feedback-box" class="hidden"></div>
 
     <form id="report-form" class="card">
-      <div class="grid-2">
-        <div class="form-group">
-          <label class="form-label" for="citizen-cpf">Seu CPF *</label>
-          <input
-            type="text"
-            id="citizen-cpf"
-            class="form-control"
-            placeholder="000.000.000-00"
-            maxlength="14"
-            required
-          />
-          <span class="form-hint">Usado para consultar o andamento do seu pedido.</span>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="citizen-name">Seu Nome (opcional)</label>
-          <input
-            type="text"
-            id="citizen-name"
-            class="form-control"
-            placeholder="Ex.: Dona Lúcia"
-          />
-        </div>
+      <div class="form-group">
+        <label class="form-label" for="report-cpf">Seu CPF (11 dígitos) *</label>
+        <input
+          type="text"
+          id="report-cpf"
+          class="form-control"
+          placeholder="000.000.000-00"
+          maxlength="14"
+          required
+        />
+        <span class="form-hint">Usado para você consultar seus próprios chamados na tela Acompanhar CPF.</span>
       </div>
 
       <div class="form-group">
@@ -108,27 +99,26 @@
         ></textarea>
       </div>
 
+      <div id="recaptcha-report" class="form-group"></div>
+
       <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem;">
-        <button type="submit" class="btn btn-primary" style="flex: 1; min-width: 220px;">
-          Enviar Reporte para a Prefeitura
+        <button type="submit" id="submit-report-btn" class="btn btn-primary" style="flex: 1; min-width: 220px;">
+          Enviar Reporte
         </button>
-        <a href="acompanhar.html" class="btn btn-outline">Ver Meus Reportes</a>
+        <a href="acompanhar.html" class="btn btn-outline" onclick="if (typeof stopSpeech === 'function') stopSpeech();">Acompanhar por CPF</a>
       </div>
     </form>
   </main>
 
   <footer class="footer">
-    Escoamento Certo • Canal Direto com a Zeladoria Preventiva — Prefeitura de São Paulo
+    Escoamento Certo • Canal de Zeladoria Preventiva — Prefeitura de São Paulo
   </footer>
 
   <script src="app.js"></script>
+  <script src="accessibility.js"></script>
   <script>
     renderNavbar("reportar");
-
-    const cpfInput = document.getElementById("citizen-cpf");
-    cpfInput.addEventListener("input", (e) => {
-      e.target.value = formatCPF(e.target.value);
-    });
+    mountRecaptchaWidget("recaptcha-report");
 
     document.querySelectorAll("#problem-chips .chip-option").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -155,64 +145,72 @@
       );
     }
 
-    document.getElementById("report-form").addEventListener("submit", (e) => {
+    document.getElementById("report-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const cpfRaw = cpfInput.value;
-      const cpfDigits = normalizeCPF(cpfRaw);
       const feedbackBox = document.getElementById("feedback-box");
+      const submitBtn = document.getElementById("submit-report-btn");
 
+      const cpfDigits = onlyDigits(document.getElementById("report-cpf").value);
       if (cpfDigits.length !== 11) {
         feedbackBox.className = "alert-banner alert-error";
-        feedbackBox.textContent = "Por favor, digite um CPF válido com 11 números para acompanhar o seu chamado.";
+        feedbackBox.textContent = "Informe um CPF válido com 11 dígitos.";
         return;
       }
 
-      const zoneId = document.getElementById("report-zone").value;
-      const zoneObj = ZONES_DATA.find(z => z.id === zoneId) || ZONES_DATA[0];
-      const problemType = document.getElementById("problem-type").value;
-      const photoFile = document.getElementById("report-photo").files[0];
-
-      // Automatic initial importance suggestion based on zone risk and problem type
-      let initialImportance = 2;
-      if (zoneObj.riskLevel === "high" || problemType.includes("empoçando")) {
-        initialImportance = 4;
-      } else if (zoneObj.riskLevel === "medium") {
-        initialImportance = 3;
+      const recaptchaToken = getRecaptchaResponseToken();
+      if (!recaptchaToken) {
+        feedbackBox.className = "alert-banner alert-error";
+        feedbackBox.textContent = "Confirme o reCAPTCHA antes de enviar o reporte.";
+        return;
       }
 
-      const reports = getReports();
-      const newId = "EC-2026-" + String(reports.length + 1).padStart(3, "0");
-      const now = new Date();
-      const dateStr = now.toLocaleDateString("pt-BR") + " " + now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const formData = new FormData();
+      formData.append("cpf", cpfDigits);
+      formData.append("citizenName", `Cidadão (CPF ${formatCpfMasked(cpfDigits)})`);
+      formData.append("zoneId", document.getElementById("report-zone").value);
+      formData.append("address", document.getElementById("report-address").value.trim());
+      formData.append("problemType", document.getElementById("problem-type").value);
+      formData.append("description", document.getElementById("report-desc").value.trim() || "Reporte enviado pelo portal cidadão.");
+      formData.append("recaptchaToken", recaptchaToken);
 
-      const newReport = {
-        id: newId,
-        cpf: formatCPF(cpfDigits),
-        citizenName: document.getElementById("citizen-name").value.trim() || "Morador(a)",
-        zoneId: zoneObj.id,
-        zoneName: zoneObj.name,
-        address: document.getElementById("report-address").value.trim(),
-        problemType: problemType,
-        description: document.getElementById("report-desc").value.trim() || "Reporte enviado pelo portal cidadão.",
-        importance: initialImportance,
-        riverRiskScore: zoneObj.riskLevel === "high" ? 90 : (zoneObj.riskLevel === "medium" ? 72 : 45),
-        busLinesCount: zoneObj.riskLevel === "high" ? 18 : 10,
-        status: "Em triagem",
-        assignedTeam: "Aguardando despacho",
-        createdAt: dateStr,
-        photoName: photoFile ? photoFile.name : "Sem foto anexada"
-      };
+      const photoFile = document.getElementById("report-photo").files[0];
+      if (photoFile) {
+        formData.append("photo", photoFile);
+      }
 
-      reports.unshift(newReport);
-      saveReports(reports);
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Enviando...";
 
-      feedbackBox.className = "alert-banner alert-success";
-      feedbackBox.innerHTML = `
-        Reporte <strong>${newId}</strong> registrado com sucesso para o CPF <strong>${newReport.cpf}</strong>!
-        <a href="acompanhar.html?cpf=${cpfDigits}" style="text-decoration: underline; margin-left: 0.4rem;">Acompanhar agora →</a>
-      `;
-      document.getElementById("report-form").reset();
-      cpfInput.value = formatCPF(cpfDigits);
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          feedbackBox.className = "alert-banner alert-error";
+          feedbackBox.textContent = data.detail || "Não foi possível registrar o reporte.";
+          return;
+        }
+
+        const msg = `Reporte ${data.id} enviado! Área agora com ${data.zoneReportCount} reporte(s) (${data.zoneCriticalityLabel}). Consulte em Acompanhar CPF.`;
+        feedbackBox.className = "alert-banner alert-success";
+        feedbackBox.textContent = msg;
+        if (getA11yPrefs().audioDescription) {
+          speakText(msg);
+        }
+        document.getElementById("report-form").reset();
+        if (window.grecaptcha && typeof window.grecaptcha.reset === "function") {
+          window.grecaptcha.reset();
+        }
+      } catch (err) {
+        feedbackBox.className = "alert-banner alert-error";
+        feedbackBox.textContent = "Erro de conexão com o servidor da API em " + window.API_BASE;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Enviar Reporte";
+      }
     });
   </script>
 </body>

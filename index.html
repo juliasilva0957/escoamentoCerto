@@ -15,15 +15,16 @@
       <h2>Limpeza preventiva antes da chuva virar enchente.</h2>
       <p>
         O <strong>Escoamento Certo</strong> cruza a previsão do nível do Rio Tietê (com margem de cautela)
-        com os avisos dos moradores sobre lixo em bocas de lobo para mandar as equipes de limpeza antes do alagamento travar os ônibus e as ruas.
+        com os avisos anônimos dos moradores sobre lixo em bocas de lobo para mandar as equipes de limpeza antes do alagamento travar os ônibus e as ruas.
       </p>
+      <div class="audio-desc-box hidden" id="hero-audio-desc">
+        Tela inicial do sistema Escoamento Certo, da Prefeitura de São Paulo. Permite verificar o alerta preventivo por GPS ou região e abrir um reporte anônimo sobre lixo ou bueiro entupido.
+      </div>
       <div class="hero-actions">
-        <a href="reportar.html" class="btn btn-primary">+ Reportar Lixo / Bueiro Entupido</a>
-        <a href="acompanhar.html" class="btn btn-secondary">Consultar Meu Reporte por CPF</a>
+        <a href="reportar.html" class="btn btn-primary" onclick="if (typeof stopSpeech === 'function') stopSpeech();">+ Reportar Lixo / Bueiro Entupido (Anônimo)</a>
       </div>
     </section>
 
-    <!-- Alerta Preventivo com Geolocalização GPS -->
     <section id="gps-alert-container" class="gps-alert-box risk-high" aria-live="polite">
       <div class="gps-header">
         <div>
@@ -48,7 +49,7 @@
           </p>
         </div>
         <div>
-          <p style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem;">Impacto no Transporte & Orientação:</p>
+          <p style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.2rem;">Impacto no Transporte &amp; Orientação:</p>
           <p id="gps-bus-impact" style="font-size: 0.94rem; color: var(--text-secondary);">
             18 linhas de ônibus municipais e intermunicipais afetadas no corredor.
           </p>
@@ -58,6 +59,10 @@
       <p id="gps-advice" style="margin-top: 0.85rem; padding: 0.65rem 0.85rem; background: rgba(255,255,255,0.75); border-radius: 8px; font-size: 0.9rem; font-weight: 600;">
         Orientação: Evite transitar próximo às alças de acesso e verifique se há bocas de lobo obstruídas na região.
       </p>
+
+      <div class="audio-desc-box hidden" id="gps-audio-desc">
+        Alerta ativo na região Marginal Tietê — Ponte do Piqueri / Freguesia do Ó, classificado como alto risco de alagamento. Nível do Rio Tietê em elevação de 1,45 metro com margem de cautela e pico previsto em 2 horas e 30 minutos. 18 linhas de ônibus afetadas.
+      </div>
 
       <div class="gps-controls">
         <label for="zone-manual-select" style="font-size: 0.86rem; font-weight: 700;">Ou escolha sua região para simular:</label>
@@ -70,7 +75,6 @@
       </div>
     </section>
 
-    <!-- Como funciona em 3 passos simples -->
     <section>
       <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">Como o Escoamento Certo protege seu trajeto</h3>
       <div class="grid-3">
@@ -78,21 +82,21 @@
           <span class="status-pill pill-info">PASSO 1 • MORADOR</span>
           <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Você avisa onde tem lixo</h4>
           <p style="font-size: 0.92rem; color: var(--text-secondary);">
-            Viu boca de lobo entupida, entulho ou sacolas na sarjeta? Envie o local e seu CPF em menos de 30 segundos.
+            Viu boca de lobo entupida, entulho ou sacolas na sarjeta? Envie o local de forma anônima em menos de 30 segundos.
           </p>
         </article>
         <article class="card">
           <span class="status-pill pill-medium">PASSO 2 • PREFEITURA</span>
           <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Prioridade por Risco e Importância</h4>
           <p style="font-size: 0.92rem; color: var(--text-secondary);">
-            A equipe da Prefeitura classifica a importância do chamado e cruza com a previsão do Rio Tietê para agir primeiro nos pontos críticos.
+            A equipe da Prefeitura classifica a importância do chamado e cruza com a previsão do rio para agir primeiro nos pontos críticos.
           </p>
         </article>
         <article class="card">
-          <span class="status-pill pill-low">PASSO 3 • TRANSPARÊNCIA</span>
-          <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Acompanhe pelo seu CPF</h4>
+          <span class="status-pill pill-low">PASSO 3 • AÇÃO PREVENTIVA</span>
+          <h4 style="margin: 0.65rem 0 0.35rem; font-size: 1.08rem;">Limpeza antes do pico</h4>
           <p style="font-size: 0.92rem; color: var(--text-secondary);">
-            Sem ficar no escuro: consulte seu CPF e veja quando a equipe foi designada e quando a limpeza foi concluída.
+            Com o gatilho antecipado e a margem de cautela, as equipes atuam antes que a chuva e a elevação do nível travem a via.
           </p>
         </article>
       </div>
@@ -104,6 +108,7 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="accessibility.js"></script>
   <script>
     renderNavbar("index");
 
@@ -115,6 +120,7 @@
       const river = document.getElementById("gps-river-forecast");
       const bus = document.getElementById("gps-bus-impact");
       const advice = document.getElementById("gps-advice");
+      const audioDesc = document.getElementById("gps-audio-desc");
 
       box.classList.remove("risk-high", "risk-medium", "risk-low");
       pill.classList.remove("pill-critical", "pill-medium", "pill-low");
@@ -136,7 +142,13 @@
       river.textContent = zone.riverForecast;
       bus.textContent = zone.busImpact;
       advice.textContent = "Orientação: " + zone.advice;
+      audioDesc.textContent =
+        `Alerta na região ${zone.name}, status ${zone.riskLabel}. ${zone.riverForecast} ${zone.busImpact} Orientação: ${zone.advice}`;
       document.getElementById("zone-manual-select").value = zone.id;
+
+      if (typeof getA11yPrefs === "function" && getA11yPrefs().audioDescription && typeof speakText === "function") {
+        speakText(audioDesc.textContent);
+      }
     }
 
     function selectZoneManually(zoneId) {

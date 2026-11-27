@@ -15,8 +15,11 @@
         <span class="status-pill pill-info">OPERAÇÃO PMSP • PRIORIZAÇÃO PREVENTIVA</span>
         <h2 style="font-size: 1.65rem; margin-top: 0.45rem;">Gerenciamento de Limpeza por Importância</h2>
         <p style="color: var(--text-secondary);">
-          Os chamados são ordenados automaticamente pelo <strong>Nível de Importância definido pelo funcionário</strong> combinado ao risco hidrológico da Marginal Tietê.
+          Os chamados anônimos são ordenados automaticamente pelo <strong>Nível de Importância definido pelo funcionário</strong> combinado ao risco hidrológico da Marginal Tietê.
         </p>
+        <div class="audio-desc-box hidden">
+          Tela de despacho e priorização de limpeza preventiva. Permite filtrar chamados por status, alterar o nível de importância de 1 a 4, designar equipes de zeladoria e concluir limpezas.
+        </div>
       </div>
       <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
         <select id="filter-status" class="form-control" style="width: auto; padding: 0.52rem 0.85rem;" onchange="renderQueue()">
@@ -36,6 +39,7 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="accessibility.js"></script>
   <script>
     if (!isPmspLoggedIn()) {
       window.location.href = "login.html?restricted=1";
@@ -46,77 +50,119 @@
       const box = document.getElementById("toast-area");
       box.className = "alert-banner alert-success";
       box.textContent = msg;
+      if (getA11yPrefs().audioDescription) {
+        speakText(msg);
+      }
       setTimeout(() => {
         box.className = "hidden";
       }, 3500);
     }
 
-    function updateImportance(reportId, newImportance) {
-      const reports = getReports();
-      const idx = reports.findIndex(r => r.id === reportId);
-      if (idx === -1) return;
-
-      reports[idx].importance = Number(newImportance);
-      saveReports(reports);
-      renderQueue();
+    async function updateImportance(reportId, newImportance) {
+      const impNum = Number(newImportance);
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports/${encodeURIComponent(reportId)}/importance`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ importance: impNum })
+        });
+        if (!resp.ok) throw new Error("API error");
+      } catch (_) {
+        const reports = getReports();
+        const idx = reports.findIndex(r => r.id === reportId);
+        if (idx !== -1) {
+          reports[idx].importance = impNum;
+          saveReports(reports);
+        }
+      }
+      await renderQueue();
       showToast(`Importância do chamado ${reportId} atualizada! A fila foi reordenada automaticamente.`);
     }
 
-    function dispatchTeam(reportId) {
+    async function dispatchTeam(reportId) {
       const teamSelect = document.getElementById("team-" + reportId);
       const selectedTeam = teamSelect ? teamSelect.value : "Equipe Zeladoria Marginal 01";
-      const reports = getReports();
-      const idx = reports.findIndex(r => r.id === reportId);
-      if (idx === -1) return;
-
-      reports[idx].status = "Equipe designada";
-      reports[idx].assignedTeam = selectedTeam;
-      saveReports(reports);
-      renderQueue();
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports/${encodeURIComponent(reportId)}/dispatch`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assignedTeam: selectedTeam })
+        });
+        if (!resp.ok) throw new Error("API error");
+      } catch (_) {
+        const reports = getReports();
+        const idx = reports.findIndex(r => r.id === reportId);
+        if (idx !== -1) {
+          reports[idx].status = "Equipe designada";
+          reports[idx].assignedTeam = selectedTeam;
+          saveReports(reports);
+        }
+      }
+      await renderQueue();
       showToast(`Equipe "${selectedTeam}" designada para o chamado ${reportId}.`);
     }
 
-    function completeCleanup(reportId) {
-      const reports = getReports();
-      const idx = reports.findIndex(r => r.id === reportId);
-      if (idx === -1) return;
-
-      reports[idx].status = "Concluído";
-      if (!reports[idx].assignedTeam || reports[idx].assignedTeam === "Aguardando despacho") {
-        reports[idx].assignedTeam = "Equipe Zeladoria PMSP (Atendimento Direto)";
+    async function completeCleanup(reportId) {
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports/${encodeURIComponent(reportId)}/complete`, {
+          method: "PATCH"
+        });
+        if (!resp.ok) throw new Error("API error");
+      } catch (_) {
+        const reports = getReports();
+        const idx = reports.findIndex(r => r.id === reportId);
+        if (idx !== -1) {
+          reports[idx].status = "Concluído";
+          if (!reports[idx].assignedTeam || reports[idx].assignedTeam === "Aguardando despacho") {
+            reports[idx].assignedTeam = "Equipe Zeladoria PMSP (Atendimento Direto)";
+          }
+          saveReports(reports);
+        }
       }
-      saveReports(reports);
-      renderQueue();
+      await renderQueue();
       showToast(`Limpeza do chamado ${reportId} marcada como CONCLUÍDA!`);
     }
 
-    function renderQueue() {
-      const filter = document.getElementById("filter-status").value;
-      let reports = getReports();
-
-      if (filter === "pending") {
-        reports = reports.filter(r => r.status !== "Concluído");
-      } else if (filter === "Concluído") {
-        reports = reports.filter(r => r.status === "Concluído");
+    async function fetchReportsForQueue(filter) {
+      try {
+        const resp = await fetch(`${window.API_BASE}/api/reports?status=${encodeURIComponent(filter)}&sort=priority`);
+        if (!resp.ok) throw new Error("API error");
+        return await resp.json();
+      } catch (_) {
+        let reports = getReports();
+        if (filter === "pending") {
+          reports = reports.filter(r => r.status !== "Concluído");
+        } else if (filter === "Concluído") {
+          reports = reports.filter(r => r.status === "Concluído");
+        }
+        reports.sort((a, b) => {
+          const diffImp = Number(b.importance || 2) - Number(a.importance || 2);
+          if (diffImp !== 0) return diffImp;
+          return computePriorityScore(b) - computePriorityScore(a);
+        });
+        return reports;
       }
+    }
 
-      // Sort strictly by Importance level first (4 -> 1), then by computed priority score
-      reports.sort((a, b) => {
-        const diffImp = Number(b.importance || 2) - Number(a.importance || 2);
-        if (diffImp !== 0) return diffImp;
-        return computePriorityScore(b) - computePriorityScore(a);
-      });
-
+    async function renderQueue() {
+      const filter = document.getElementById("filter-status").value;
+      const reports = await fetchReportsForQueue(filter);
       const container = document.getElementById("queue-list");
+
       if (reports.length === 0) {
         container.innerHTML = `<div class="card"><p>Nenhum chamado encontrado para o filtro selecionado.</p></div>`;
         return;
       }
 
+      const prefs = getA11yPrefs();
+      const hiddenClass = prefs.audioDescription ? "" : "hidden";
+
       container.innerHTML = reports.map((rep, index) => {
         const imp = getImportanceMeta(rep.importance);
-        const totalScore = computePriorityScore(rep);
+        const totalScore = rep.priorityScore != null ? rep.priorityScore : computePriorityScore(rep);
         const isDone = rep.status === "Concluído";
+        const audioText = rep.audioDescription || `Posição ${index + 1}, chamado ${rep.id}, ${rep.problemType}, status ${rep.status}.`;
+        const senderLabel = rep.citizenName || "Cidadão Anônimo";
 
         return `
           <article class="priority-card ${imp.cardClass}">
@@ -151,11 +197,12 @@
             </div>
 
             <p style="font-size: 0.9rem; color: var(--text-main);">
-              <strong>Relato (${rep.citizenName} • CPF ${rep.cpf}):</strong> ${rep.description}
+              <strong>Relato (${senderLabel}):</strong> ${rep.description}
             </p>
             <p style="font-size: 0.83rem; color: var(--text-muted); margin-top: 0.35rem;">
               Previsão Rio/Risco: ${rep.riverRiskScore}% • Linhas de ônibus impactadas: ${rep.busLinesCount} • Anexo: ${rep.photoName}
             </p>
+            <div class="audio-desc-box ${hiddenClass}">${audioText}</div>
 
             <div class="priority-actions">
               <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">

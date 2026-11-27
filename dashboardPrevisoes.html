@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Previsões — Escoamento Certo (PMSP)</title>
+  <link rel="stylesheet" href="dashboardPrevisoes.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="navbar-mount"></div>
+
+  <main class="container">
+    <div class="page-header-row-compact">
+      <div>
+        <span class="status-pill pill-info">LEITURA RÁPIDA • SALA DE SITUAÇÃO &amp; GESTÃO</span>
+        <h2 class="page-title">Dashboard de Previsões do Rio Tietê</h2>
+        <p class="page-subtitle-sm">
+          Cada cartão responde a <strong>1 pergunta</strong> com um <strong>KPI no topo</strong>, um <strong>gráfico visual</strong> e uma <strong>conclusão prática</strong>.
+        </p>
+        <div class="audio-desc-box hidden" id="prev-audio-summary">
+          Painel de previsões hidrológicas e criticidade por área exibindo erro absoluto médio, picos de erro, mapa de calor de reportes por região, comportamento por fase do rio, evolução temporal e prioridade operacional.
+        </div>
+      </div>
+
+      <div class="station-selector-box">
+        <label for="station-select" class="station-selector-label">Estação em foco (Gráficos 1 e 5):</label>
+        <select id="station-select" class="form-control select-auto" onchange="updateStationCharts(this.value)">
+          <option value="piqueri">Ponte do Piqueri</option>
+          <option value="bandeiras">Ponte das Bandeiras</option>
+          <option value="penha">Penha / Tatuapé</option>
+        </select>
+      </div>
+    </div>
+
+    <section class="reading-guide" aria-label="Guia rápido de leitura do painel">
+      <div class="reading-guide-title">Como ler este painel em 10 segundos</div>
+      <div class="reading-legend">
+        <span class="legend-item"><span class="legend-swatch swatch-red"></span> Crítico / Maior concentração de reportes ou risco</span>
+        <span class="legend-item"><span class="legend-swatch swatch-orange"></span> Atenção alta / Ação preventiva</span>
+        <span class="legend-item"><span class="legend-swatch swatch-blue"></span> Previsão / Margem de cautela</span>
+        <span class="legend-item"><span class="legend-swatch swatch-green"></span> Erro baixo / Situação controlada</span>
+      </div>
+    </section>
+
+    <div class="grid-2">
+
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">1. Aproximação Previsto × Observado</span>
+          <h3 class="panel-title">O quanto a previsão chega perto do nível real?</h3>
+        </div>
+        <div class="kpi-box">
+          <div>
+            <div class="kpi-title">KPI: MAE (Erro Absoluto Médio)</div>
+            <div class="kpi-number" id="kpi-mae-station">11,4 cm</div>
+          </div>
+          <div class="kpi-sub" id="kpi-mae-sub">Estação: Ponte do Piqueri • Média geral da rede: 12,8 cm</div>
+        </div>
+        <div class="chart-container-tall">
+          <canvas id="scatterChart"></canvas>
+        </div>
+        <p class="panel-takeaway" id="takeaway-1">
+          <strong>Leitura rápida:</strong> Quanto mais perto da linha vermelha tracejada (1:1), mais exata foi a previsão. Na Ponte do Piqueri, o erro médio é de 11,4 cm.
+        </p>
+      </section>
+
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">2. Onde e Quando Ocorrem os Maiores Erros</span>
+          <h3 class="panel-title">Em qual estação e horário o modelo erra mais?</h3>
+        </div>
+        <div class="kpi-box critical">
+          <div>
+            <div class="kpi-title">KPI: Pico Máximo de Erro Absoluto</div>
+            <div class="kpi-number text-red-bold">34,0 cm</div>
+          </div>
+          <div class="kpi-sub">Pior janela: <strong>Ponte das Bandeiras (16h–20h)</strong></div>
+        </div>
+        <div class="heatmap-wrap">
+          <table class="heatmap-table" aria-label="Mapa de calor de erro médio por estação e horário">
+            <thead>
+              <tr>
+                <th>Estação</th>
+                <th>00h–04h</th>
+                <th>04h–08h</th>
+                <th>08h–12h</th>
+                <th>12h–16h</th>
+                <th>16h–20h</th>
+                <th>20h–00h</th>
+              </tr>
+            </thead>
+            <tbody id="heatmap-body"></tbody>
+          </table>
+        </div>
+        <p class="panel-takeaway">
+          <strong>Leitura rápida:</strong> Os erros sobem no fim da tarde (16h–20h), justamente no pico de chuvas e retorno de ônibus. Reforce a margem de cautela nesse horário.
+        </p>
+      </section>
+
+      <!-- 3. MAPA DE CALOR: QUANTO MAIS REPORTES NA ÁREA, MAIS CRÍTICA ELA FICA -->
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">3. Mapa de Calor de Reportes por Região</span>
+          <h3 class="panel-title">Quais regiões têm mais reportes e ficam mais críticas?</h3>
+        </div>
+        <div class="kpi-box high">
+          <div>
+            <div class="kpi-title">KPI: Área Mais Crítica por Volume de Reportes</div>
+            <div class="kpi-number text-orange-bold" id="kpi-hottest-zone">Carregando...</div>
+          </div>
+          <div class="kpi-sub" id="kpi-hottest-sub">Quanto mais reportes na região, maior a criticidade da área</div>
+        </div>
+
+        <div id="region-report-heatmap" class="region-heat-grid" aria-label="Mapa de calor de reportes por região"></div>
+        <div class="audio-desc-box hidden" id="region-heat-audio"></div>
+
+        <p class="panel-takeaway" id="takeaway-3">
+          <strong>Leitura rápida:</strong> Regiões com mais reportes acumulados sobem de nível (Moderado → Alto → Crítico) e ganham maior intensidade no mapa de calor.
+        </p>
+      </section>
+
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">4. Subida, Descida e Níveis Elevados</span>
+          <h3 class="panel-title">Como o erro muda conforme a fase do rio?</h3>
+        </div>
+        <div class="kpi-box medium">
+          <div>
+            <div class="kpi-title">KPI: MAE por Fase Hidrológica</div>
+            <div class="kpi-number kpi-number-compact">Subida: 16,2 cm • Descida: 9,1 cm • Alto: 18,7 cm</div>
+          </div>
+          <div class="kpi-sub">Maior variação na <strong>Subida</strong> e em <strong>Níveis Elevados</strong></div>
+        </div>
+        <div class="bp-grid-readable" aria-label="Comparativo de erro por fase hidrológica">
+          <div class="bp-col">
+            <div class="bp-canvas">
+              <div class="bp-whisker bp-w-subida"></div>
+              <div class="bp-cap bp-cap-subida-top"></div>
+              <div class="bp-cap bp-cap-subida-bot"></div>
+              <div class="bp-box bp-box-subida"></div>
+              <div class="bp-median bp-med-subida"></div>
+            </div>
+            <div class="bp-label">Subida (MAE 16,2 cm)</div>
+            <div class="bp-stats">Linha escura = mediana (+14 cm)</div>
+          </div>
+          <div class="bp-col">
+            <div class="bp-canvas">
+              <div class="bp-whisker bp-w-descida"></div>
+              <div class="bp-cap bp-cap-descida-top"></div>
+              <div class="bp-cap bp-cap-descida-bot"></div>
+              <div class="bp-box bp-box-descida"></div>
+              <div class="bp-median bp-med-descida"></div>
+            </div>
+            <div class="bp-label">Descida (MAE 9,1 cm)</div>
+            <div class="bp-stats">Linha escura = mediana (+8 cm)</div>
+          </div>
+          <div class="bp-col">
+            <div class="bp-canvas">
+              <div class="bp-whisker bp-w-alto"></div>
+              <div class="bp-cap bp-cap-alto-top"></div>
+              <div class="bp-cap bp-cap-alto-bot"></div>
+              <div class="bp-box bp-box-alto"></div>
+              <div class="bp-median bp-med-alto"></div>
+            </div>
+            <div class="bp-label">Níveis Elevados (MAE 18,7 cm)</div>
+            <div class="bp-stats">Linha escura = mediana (+18 cm)</div>
+          </div>
+        </div>
+        <p class="panel-takeaway">
+          <strong>Leitura rápida:</strong> A descida é a fase mais previsível (9,1 cm). A limpeza preventiva deve ocorrer <strong>antes</strong> da subida rápida e das cotas elevadas.
+        </p>
+      </section>
+
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">5. Evolução Temporal do Evento</span>
+          <h3 class="panel-title">Qual o pico previsto com margem e quando ele chega?</h3>
+        </div>
+        <div class="kpi-box critical">
+          <div>
+            <div class="kpi-title">KPI: Pico Previsto (c/ Margem) &amp; Tempo Restante</div>
+            <div class="kpi-number text-red-bold" id="kpi-peak-val">3,42 m • Pico em 2h30</div>
+          </div>
+          <div class="kpi-sub" id="kpi-peak-sub">Atenção: 2,80 m (amarelo) • Alerta: 3,30 m (vermelho)</div>
+        </div>
+        <div class="chart-container-tall">
+          <canvas id="timeSeriesChart"></canvas>
+        </div>
+        <p class="panel-takeaway" id="takeaway-5">
+          <strong>Leitura rápida:</strong> A faixa azul clara representa a margem de cautela em torno da previsão tracejada; o limite superior deve guiar o despacho antes da cota de alerta.
+        </p>
+      </section>
+
+      <section class="panel-card">
+        <div>
+          <span class="topic-tag">6. Prioridade para os Gestores</span>
+          <h3 class="panel-title">Onde agir primeiro antes que a água trave os ônibus?</h3>
+        </div>
+        <div class="kpi-box critical">
+          <div>
+            <div class="kpi-title">KPI: Pontos Críticos em Janela Útil de Atuação</div>
+            <div class="kpi-number text-red-bold">4 pontos críticos</div>
+          </div>
+          <div class="kpi-sub">Janela útil restante: <strong>1h45</strong> antes do pico</div>
+        </div>
+
+        <div class="matrix-grid-readable" aria-label="Matriz de atenção operacional em quadrantes">
+          <div class="quadrant-readable q-urgent">
+            <div class="q-badge">
+              <span>1. Ação Imediata</span>
+              <span>Risco Alto + Ônibus Alto</span>
+            </div>
+            <div class="point-chip-readable chip-red">Piqueri — 18 linhas de ônibus + lixo em bueiro</div>
+            <div class="point-chip-readable chip-red">Bandeiras — 24 linhas + modelo subestima</div>
+            <div class="point-chip-readable chip-red">Vila Maria — Entulho bloqueando sarjeta</div>
+          </div>
+
+          <div class="quadrant-readable q-watch">
+            <div class="q-badge">
+              <span>2. Monitorar de Perto</span>
+              <span>Risco Alto + Menor Ônibus</span>
+            </div>
+            <div class="point-chip-readable chip-amber">Córrego Cabuçu — Margem de cautela ativa (+20 cm)</div>
+            <div class="point-chip-readable chip-amber">Alça Freguesia — Bueiro assoreado</div>
+          </div>
+
+          <div class="quadrant-readable q-prevent">
+            <div class="q-badge">
+              <span>3. Limpeza Programada</span>
+              <span>Risco Baixo + Ônibus Alto</span>
+            </div>
+            <div class="point-chip-readable chip-orange">Penha / Radial — 11 linhas de ônibus monitoradas</div>
+            <div class="point-chip-readable chip-orange">Lapa / Pista Local — Coleta preventiva</div>
+          </div>
+
+          <div class="quadrant-readable q-normal">
+            <div class="q-badge">
+              <span>4. Rotina</span>
+              <span>Risco Baixo + Impacto Baixo</span>
+            </div>
+            <div class="point-chip-readable chip-green">Campo Limpo — Nível estável no momento</div>
+            <div class="point-chip-readable chip-green">Parque Ecológico — Sem obstrução reportada</div>
+          </div>
+        </div>
+
+        <p class="panel-takeaway">
+          <strong>Leitura rápida:</strong> Comece pelo quadrante vermelho (<strong>1. Ação Imediata</strong>), onde risco hidrológico alto e grande fluxo de ônibus exigem limpeza antes da chuva apertar.
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    Escoamento Certo • Sala de Situação e Validação Hidrológica — Prefeitura de São Paulo
+  </footer>
+
+  <script src="app.js"></script>
+  <script src="accessibility.js"></script>
+  <script>
+    if (!isPmspLoggedIn()) {
+      window.location.href = "login.html?restricted=1";
+    }
+    renderNavbar("previsoes");
+
+    const STATIONS = {
+      piqueri: {
+        name: "Ponte do Piqueri",
+        mae: "11,4 cm",
+        peakText: "3,42 m • Pico em 2h30",
+        t1: "<strong>Leitura rápida:</strong> Quanto mais perto da linha vermelha tracejada (1:1), mais exata foi a previsão. Na Ponte do Piqueri, o erro médio é de 11,4 cm.",
+        t5: "<strong>Leitura rápida:</strong> Na Ponte do Piqueri, a margem superior atinge 3,42 m em 2h30 — acima da cota de alerta (3,30 m), pedindo ação preventiva.",
+        scatter: [
+          {x: 1.85, y: 1.90}, {x: 2.10, y: 2.02}, {x: 2.35, y: 2.44}, {x: 2.60, y: 2.51},
+          {x: 2.85, y: 2.98}, {x: 3.05, y: 2.92}, {x: 3.20, y: 3.31}, {x: 3.35, y: 3.24}
+        ],
+        labels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h"],
+        observed:  [1.90, 2.05, 2.28, 2.55, 2.82, 3.04, null, null, null, null],
+        predicted: [1.92, 2.02, 2.22, 2.48, 2.75, 2.98, 3.16, 3.26, 3.20, 3.02],
+        marginTop: [2.04, 2.14, 2.35, 2.62, 2.90, 3.14, 3.32, 3.42, 3.36, 3.18],
+        marginBot: [1.80, 1.90, 2.09, 2.34, 2.60, 2.82, 3.00, 3.10, 3.04, 2.86]
+      },
+      bandeiras: {
+        name: "Ponte das Bandeiras",
+        mae: "15,8 cm",
+        peakText: "3,56 m • Pico em 1h45",
+        t1: "<strong>Leitura rápida:</strong> Na Ponte das Bandeiras, os pontos ficam um pouco abaixo da linha 1:1 (MAE 15,8 cm), reforçando a necessidade de margem de cautela.",
+        t5: "<strong>Leitura rápida:</strong> Na Ponte das Bandeiras, o pico com margem chega a 3,56 m em 1h45 — janela curta para liberar bueiros e vias de ônibus.",
+        scatter: [
+          {x: 1.95, y: 1.82}, {x: 2.25, y: 2.10}, {x: 2.55, y: 2.38}, {x: 2.80, y: 2.62},
+          {x: 3.05, y: 2.85}, {x: 3.25, y: 3.02}, {x: 3.40, y: 3.18}, {x: 3.50, y: 3.29}
+        ],
+        labels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h"],
+        observed:  [2.00, 2.20, 2.48, 2.78, 3.05, 3.26, null, null, null, null],
+        predicted: [1.92, 2.10, 2.34, 2.62, 2.88, 3.10, 3.28, 3.38, 3.30, 3.12],
+        marginTop: [2.08, 2.26, 2.51, 2.80, 3.06, 3.28, 3.46, 3.56, 3.48, 3.30],
+        marginBot: [1.76, 1.94, 2.17, 2.44, 2.70, 2.92, 3.10, 3.20, 3.12, 2.94]
+      },
+      penha: {
+        name: "Penha / Tatuapé",
+        mae: "9,6 cm",
+        peakText: "2,98 m • Pico em 3h10",
+        t1: "<strong>Leitura rápida:</strong> Em Penha / Tatuapé, os pontos ficam bem próximos da linha 1:1 (MAE 9,6 cm), mostrando boa aderência do modelo.",
+        t5: "<strong>Leitura rápida:</strong> Em Penha / Tatuapé, o pico previsto com margem (2,98 m em 3h10) fica na faixa de atenção, sem romper a cota de alerta.",
+        scatter: [
+          {x: 1.70, y: 1.76}, {x: 1.90, y: 1.98}, {x: 2.15, y: 2.22}, {x: 2.35, y: 2.42},
+          {x: 2.55, y: 2.64}, {x: 2.70, y: 2.78}, {x: 2.82, y: 2.88}, {x: 2.90, y: 2.95}
+        ],
+        labels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h"],
+        observed:  [1.72, 1.85, 2.04, 2.25, 2.46, 2.62, null, null, null, null],
+        predicted: [1.76, 1.90, 2.10, 2.31, 2.52, 2.68, 2.80, 2.86, 2.81, 2.69],
+        marginTop: [1.88, 2.02, 2.22, 2.43, 2.64, 2.80, 2.92, 2.98, 2.93, 2.81],
+        marginBot: [1.64, 1.78, 1.98, 2.19, 2.40, 2.56, 2.68, 2.74, 2.69, 2.57]
+      }
+    };
+
+    const scatterCtx = document.getElementById("scatterChart").getContext("2d");
+    const scatterChart = new Chart(scatterCtx, {
+      type: "scatter",
+      data: {
+        datasets: [
+          {
+            label: "Pares Observado × Previsto (m)",
+            data: STATIONS.piqueri.scatter,
+            backgroundColor: "#0284c7",
+            pointRadius: 6.5
+          },
+          {
+            label: "Linha Ideal 1:1 (Previsão Exata)",
+            type: "line",
+            data: [{x: 1.6, y: 1.6}, {x: 3.6, y: 3.6}],
+            borderColor: "#dc2626",
+            borderDash: [6, 6],
+            borderWidth: 2.2,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { font: { size: 12, weight: "bold" } } }
+        },
+        scales: {
+          x: { title: { display: true, text: "Nível Observado (m)", font: { weight: "bold" } }, min: 1.6, max: 3.6 },
+          y: { title: { display: true, text: "Nível Previsto (m)", font: { weight: "bold" } }, min: 1.6, max: 3.6 }
+        }
+      }
+    });
+
+    const heatmapRows = [
+      { station: "Ponte das Bandeiras", vals: [7, 9, 14, 19, 34, 21] },
+      { station: "Ponte do Piqueri",    vals: [6, 8, 11, 16, 26, 17] },
+      { station: "Vila Maria",          vals: [8, 10, 13, 18, 29, 19] },
+      { station: "Penha / Tatuapé",     vals: [5, 7, 9, 12, 18, 11] },
+      { station: "Córrego Cabuçu",      vals: [6, 8, 12, 15, 23, 14] }
+    ];
+
+    function heatClass(val) {
+      if (val >= 25) return "heat-crit";
+      if (val >= 18) return "heat-high";
+      if (val >= 12) return "heat-med";
+      return "heat-low";
+    }
+
+    document.getElementById("heatmap-body").innerHTML = heatmapRows.map(r => `
+      <tr>
+        <td class="station-col">${r.station}</td>
+        ${r.vals.map(v => `<td class="${heatClass(v)}">${v} cm</td>`).join("")}
+      </tr>
+    `).join("");
+
+    async function renderRegionReportHeatmap() {
+      let heatmapItems = [];
+      try {
+        const [sumResp, repResp] = await Promise.all([
+          fetch(`${window.API_BASE}/api/dashboard/summary`),
+          fetch(`${window.API_BASE}/api/reports?status=all&sort=priority`)
+        ]);
+        if (!sumResp.ok || !repResp.ok) throw new Error("API error");
+        const sumData = await sumResp.json();
+        const reps = await repResp.json();
+        if (Array.isArray(sumData.heatmapByZone) && sumData.heatmapByZone.length > 0) {
+          heatmapItems = sumData.heatmapByZone;
+        } else {
+          throw new Error("Empty heatmap");
+        }
+        if (!heatmapItems.length && Array.isArray(reps)) {
+          throw new Error("Fallback");
+        }
+      } catch (_) {
+        const reports = getReports();
+        const maxZone = Math.max(...ZONES_DATA.map(z => reports.filter(r => r.zoneId === z.id).length), 1);
+        heatmapItems = ZONES_DATA.map(z => {
+          const zItems = reports.filter(r => r.zoneId === z.id);
+          const cnt = zItems.length;
+          const pend = zItems.filter(r => r.status !== "Concluído").length;
+          const crit = getZoneAreaCriticality(cnt);
+          return {
+            zoneId: z.id,
+            zoneName: z.name,
+            reportCount: cnt,
+            pendingCount: pend,
+            intensityPct: Math.round((cnt / maxZone) * 100),
+            criticalityLevel: crit.level,
+            criticalityLabel: crit.label
+          };
+        });
+      }
+
+      const sorted = [...heatmapItems].sort((a, b) => Number(b.reportCount) - Number(a.reportCount));
+      const topZone = sorted[0];
+
+      if (topZone) {
+        const shortTop = topZone.zoneName.split("—")[1] ? topZone.zoneName.split("—")[1].trim() : topZone.zoneName;
+        document.getElementById("kpi-hottest-zone").textContent = `${shortTop} (${topZone.reportCount} reportes)`;
+        document.getElementById("kpi-hottest-sub").innerHTML = `Criticidade da área: <strong>${topZone.criticalityLabel}</strong>`;
+      }
+
+      document.getElementById("region-report-heatmap").innerHTML = sorted.map(h => {
+        const shortName = h.zoneName.split("—")[1] ? h.zoneName.split("—")[1].trim() : h.zoneName;
+        const lvl = h.criticalityLevel || "low";
+        const widthPct = Math.max(14, Number(h.intensityPct || 0));
+        return `
+          <div class="region-heat-cell rheat-${lvl}">
+            <div class="rheat-top">
+              <span class="rheat-badge">${h.criticalityLabel}</span>
+              <strong class="rheat-count">${h.reportCount} rep.</strong>
+            </div>
+            <div class="rheat-title">${shortName}</div>
+            <div class="rheat-meta">${h.pendingCount} pendente(s) na área</div>
+            <div class="rheat-bar">
+              <div class="rheat-bar-fill" style="width: ${widthPct}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("region-heat-audio").textContent =
+        "Mapa de calor de reportes por região: " +
+        sorted.map(h => `${h.zoneName}: ${h.reportCount} reportes, criticidade ${h.criticalityLabel}`).join("; ") + ".";
+
+      if (typeof applyA11yPrefs === "function" && typeof getA11yPrefs === "function") {
+        applyA11yPrefs(getA11yPrefs());
+      }
+    }
+
+    renderRegionReportHeatmap();
+
+    const tsCtx = document.getElementById("timeSeriesChart").getContext("2d");
+    const timeSeriesChart = new Chart(tsCtx, {
+      type: "line",
+      data: {
+        labels: STATIONS.piqueri.labels,
+        datasets: [
+          {
+            label: "Faixa de Margem de Cautela (Máx)",
+            data: STATIONS.piqueri.marginTop,
+            borderColor: "rgba(2, 132, 199, 0.4)",
+            backgroundColor: "rgba(2, 132, 199, 0.18)",
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: "+1"
+          },
+          {
+            label: "Faixa de Margem de Cautela (Mín)",
+            data: STATIONS.piqueri.marginBot,
+            borderColor: "rgba(2, 132, 199, 0.4)",
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: "Nível Previsto (m)",
+            data: STATIONS.piqueri.predicted,
+            borderColor: "#0284c7",
+            borderDash: [5, 5],
+            borderWidth: 2.5,
+            tension: 0.3
+          },
+          {
+            label: "Nível Observado (m)",
+            data: STATIONS.piqueri.observed,
+            borderColor: "#0f172a",
+            backgroundColor: "#0f172a",
+            borderWidth: 3.2,
+            pointRadius: 4.5,
+            tension: 0.3
+          },
+          {
+            label: "Cota de Alerta (3,30 m)",
+            data: Array(10).fill(3.30),
+            borderColor: "#dc2626",
+            borderWidth: 1.8,
+            borderDash: [3, 3],
+            pointRadius: 0
+          },
+          {
+            label: "Cota de Atenção (2,80 m)",
+            data: Array(10).fill(2.80),
+            borderColor: "#d97706",
+            borderWidth: 1.8,
+            borderDash: [3, 3],
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              font: { size: 11.5, weight: "bold" },
+              filter: item => !item.text.includes("(Mín)")
+            }
+          }
+        },
+        scales: {
+          y: { min: 1.5, max: 3.7, title: { display: true, text: "Nível do Rio (m)", font: { weight: "bold" } } }
+        }
+      }
+    });
+
+    function updateStationCharts(key) {
+      const st = STATIONS[key];
+      document.getElementById("kpi-mae-station").textContent = st.mae;
+      document.getElementById("kpi-mae-sub").textContent = `Estação: ${st.name} • Média geral da rede: 12,8 cm`;
+      document.getElementById("kpi-peak-val").textContent = st.peakText;
+      document.getElementById("takeaway-1").innerHTML = st.t1;
+      document.getElementById("takeaway-5").innerHTML = st.t5;
+
+      scatterChart.data.datasets[0].data = st.scatter;
+      scatterChart.update();
+
+      timeSeriesChart.data.labels = st.labels;
+      timeSeriesChart.data.datasets[0].data = st.marginTop;
+      timeSeriesChart.data.datasets[1].data = st.marginBot;
+      timeSeriesChart.data.datasets[2].data = st.predicted;
+      timeSeriesChart.data.datasets[3].data = st.observed;
+      timeSeriesChart.update();
+    }
+  </script>
+</body>
+</html>

@@ -667,6 +667,189 @@ th {
   color: #991b1b;
 }
 
+.a11y-bar {
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  padding: 0.45rem 1.25rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.a11y-bar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.a11y-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.a11y-btn {
+  background-color: #1e293b;
+  color: #ffffff;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.a11y-btn[aria-pressed="true"] {
+  background-color: #f59e0b;
+  color: #0f172a;
+  border-color: #f59e0b;
+}
+
+.a11y-select {
+  background-color: #1e293b;
+  color: #ffffff;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 0.26rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.audio-desc-box {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background-color: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a8a;
+  font-size: 0.86rem;
+}
+
+.libras-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: 280px;
+  background-color: #ffffff;
+  border: 2px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  padding: 0.9rem;
+  box-shadow: var(--shadow-md);
+  z-index: 999;
+}
+
+/* Modos de Daltonismo e Alto Contraste */
+body.cb-protanopia {
+  --risk-critical: #005bbb;
+  --risk-critical-bg: #e6f0ff;
+  --risk-critical-border: #99c2ff;
+  --risk-high: #b45309;
+  --risk-high-bg: #fef3c7;
+  --risk-low: #0072b2;
+  --risk-low-bg: #e0f2fe;
+  --risk-low-border: #7dd3fc;
+}
+
+body.cb-deuteranopia {
+  --risk-critical: #004488;
+  --risk-critical-bg: #e8f1fa;
+  --risk-critical-border: #9ec5ea;
+  --risk-high: #d55e00;
+  --risk-high-bg: #ffefe5;
+  --risk-low: #009e73;
+  --risk-low-bg: #e6f7f2;
+  --risk-low-border: #80dec4;
+}
+
+body.cb-tritanopia {
+  --risk-critical: #b91c1c;
+  --risk-critical-bg: #fef2f2;
+  --risk-medium: #0f766e;
+  --risk-medium-bg: #f0fdfa;
+  --risk-low: #15803d;
+  --risk-low-bg: #f0fdf4;
+}
+
+body.cb-high-contrast {
+  --bg-page: #000000;
+  --bg-surface: #121212;
+  --bg-muted: #1e1e1e;
+  --text-main: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #cbd5e1;
+  --border-color: #ffffff;
+  --brand-primary: #fde047;
+  --brand-primary-dark: #facc15;
+  --brand-accent: #38bdf8;
+}
+
+/* Mapa de Calor por Região */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .heatmap-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.heat-cell {
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  border: 1.5px solid var(--border-color);
+  transition: transform 0.15s ease;
+}
+
+.heat-cell:hover {
+  transform: translateY(-2px);
+}
+
+.heat-low {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.heat-medium {
+  background-color: #fefce8;
+  border-color: #fde047;
+  color: #713f12;
+}
+
+.heat-high {
+  background-color: #fff7ed;
+  border-color: #fdba74;
+  color: #7c2d12;
+}
+
+.heat-critical {
+  background-color: #fef2f2;
+  border-color: #f87171;
+  color: #7f1d1d;
+}
+
+.heat-meter {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background-color: rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  margin-top: 0.6rem;
+}
+
+.heat-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: currentColor;
+}
+
 /* Footer */
 .footer {
   background-color: var(--bg-surface);
